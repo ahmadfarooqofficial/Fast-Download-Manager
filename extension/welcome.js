@@ -142,6 +142,15 @@ function connect() {
   });
 }
 
+function safePost(msg) {
+  try {
+    if (!port) connect();
+    port?.postMessage(msg);
+  } catch (e) {
+    console.debug('[fdm welcome] postMessage failed', e);
+  }
+}
+
 el.retry.addEventListener('click', () => {
   el.retry.disabled = true;
   el.status.dataset.state = 'checking';
@@ -151,8 +160,7 @@ el.retry.addEventListener('click', () => {
   el.lede.textContent = VIEWS.checking.lede;
   el.fixit.hidden = true;
 
-  if (!port) connect();
-  port?.postMessage({ type: 'refresh' });
+  safePost({ type: 'refresh' });
 
   // If nothing comes back the button must not stay disabled forever.
   setTimeout(() => {
@@ -164,4 +172,4 @@ connect();
 
 // The very first state push may say 'unknown' if the worker just woke up, so ask
 // for a real check straight away.
-port?.postMessage({ type: 'refresh' });
+safePost({ type: 'refresh' });

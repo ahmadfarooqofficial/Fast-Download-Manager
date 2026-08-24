@@ -26,12 +26,20 @@ port.onMessage.addListener((msg) => {
   if (msg?.type === 'state') render(msg);
 });
 
+function safePost(msg) {
+  try {
+    port.postMessage(msg);
+  } catch (e) {
+    console.debug('[fdm popup] postMessage failed', e);
+  }
+}
+
 el.capture.addEventListener('change', () => {
-  port.postMessage({ type: 'setEnabled', enabled: el.capture.checked });
+  safePost({ type: 'setEnabled', enabled: el.capture.checked });
 });
 
 el.clear.addEventListener('click', () => {
-  port.postMessage({ type: 'clear' });
+  safePost({ type: 'clear' });
 });
 
 // ------------------------------------------------------------------- render
@@ -142,7 +150,7 @@ function rowNode(row) {
     cancel.title = `Cancel ${row.filename}`;
     cancel.addEventListener('click', () => {
       cancel.disabled = true;
-      port.postMessage({ type: 'cancel', id: row.id });
+      safePost({ type: 'cancel', id: row.id });
     });
   }
 

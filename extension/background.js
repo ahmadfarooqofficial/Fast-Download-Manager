@@ -344,16 +344,22 @@ function decide(item, suggest) {
   if (verdict.capture) {
     // Cancel first, ask questions later. cancel() is safe to call even if the
     // download has already finished; the callback tells us if it did.
-    chrome.downloads.cancel(item.id, () => {
-      const err = chrome.runtime.lastError;
-      if (err) {
-        // Too late — Chrome already finished it. Nothing to take over.
-        console.debug('[fdm] cancel too late:', err.message);
-        return;
-      }
-      chrome.downloads.erase({ id: item.id }, () => void chrome.runtime.lastError);
-      takeOver(item).catch((e) => console.error('[fdm] takeover failed', e));
-    });
+    try {
+      chrome.downloads.cancel(item.id, () => {
+        const err = chrome.runtime.lastError;
+        if (err) {
+          // Too late — Chrome already finished it. Nothing to take over.
+          console.debug('[fdm] cancel note:', err.message);
+          return;
+        }
+        chrome.downloads.erase({ id: item.id }, () => {
+          const _ = chrome.runtime.lastError;
+        });
+        takeOver(item).catch((e) => console.error('[fdm] takeover failed', e));
+      });
+    } catch (e) {
+      console.debug('[fdm] cancel threw', e);
+    }
     return;
   }
 
