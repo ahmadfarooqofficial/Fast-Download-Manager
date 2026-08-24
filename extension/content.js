@@ -145,19 +145,10 @@
     return formats;
   }
 
-  async function renderYouTubeQualities() {
+  function renderYouTubeQualities() {
     if (!ytList) return;
     ytList.innerHTML = '';
     ytHead.textContent = 'Select Quality (FDM)';
-
-    // Query background for direct video streams captured from this tab
-    let capturedStreams = [];
-    try {
-      const res = await new Promise(resolve => {
-        chrome.runtime.sendMessage({ type: 'getTabMediaStreams' }, resolve);
-      });
-      capturedStreams = res?.streams || [];
-    } catch (e) {}
 
     const formats = getYouTubeAvailableQualities();
 
@@ -175,14 +166,14 @@
 
         closeYouTubePanel();
 
-        const directUrl = capturedStreams.length > 0 ? capturedStreams[0].url : location.href;
-
-        // Send direct media stream to FDM Native Host via Background
+        // Send to FDM Native Host via Background
         chrome.runtime.sendMessage({
           type: 'downloadMedia',
-          url: directUrl,
-          filename: filename,
+          url: location.href,
           pageUrl: location.href,
+          filename: filename,
+        }, (res) => {
+          console.log('[fdm] download requested:', res);
         });
       });
 

@@ -470,18 +470,28 @@ async fn try_relay(cmd: &DownloadCommand, ctx: &Arc<Context>) -> RelayResult {
         Ok(c) => c,
         Err(fdm_ipc::ClientError::NotRunning) => {
             let mut connected = None;
+            let mut candidates = Vec::new();
+
             if let Ok(current_exe) = std::env::current_exe() {
                 if let Some(dir) = current_exe.parent() {
-                    let desktop_exe = dir.join("fdm-desktop.exe");
-                    if desktop_exe.exists() {
-                        if let Ok(_child) = std::process::Command::new(&desktop_exe).spawn() {
-                            for _ in 0..15 {
-                                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                                if let Ok(c) = fdm_ipc::connect().await {
-                                    connected = Some(c);
-                                    break;
-                                }
+                    candidates.push(dir.join("fdm-desktop.exe"));
+                }
+            }
+            candidates.push(PathBuf::from(r"D:\Code\FDM\target\release\fdm-desktop.exe"));
+            candidates.push(PathBuf::from(r"C:\Program Files\FDM\fdm-desktop.exe"));
+
+            for desktop_exe in candidates {
+                if desktop_exe.exists() {
+                    if let Ok(_child) = std::process::Command::new(&desktop_exe).spawn() {
+                        for _ in 0..30 {
+                            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            if let Ok(c) = fdm_ipc::connect().await {
+                                connected = Some(c);
+                                break;
                             }
+                        }
+                        if connected.is_some() {
+                            break;
                         }
                     }
                 }

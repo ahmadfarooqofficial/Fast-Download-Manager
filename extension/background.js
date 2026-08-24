@@ -741,29 +741,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg?.type === 'downloadMedia') {
     (async () => {
-      let targetUrl = msg.url;
-      const tabId = sender.tab?.id;
-
-      // If a YouTube watch page URL was passed, resolve it to the captured direct media stream
-      if (/youtube\.com\/watch|youtu\.be/i.test(targetUrl) && tabId) {
-        const streams = tabMediaStreams.get(tabId) || [];
-        if (streams.length > 0) {
-          targetUrl = streams[0].url;
-        }
-      }
-
+      let targetUrl = msg.pageUrl || msg.url;
       const headers = await collectHeaders(targetUrl, msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/');
       headers['Referer'] = msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/';
 
-      sendToHost({
+      const downloadId = nextId();
+      const filename = msg.filename || baseName(targetUrl) || 'video.mp4';
+
+      console.log('[fdm] downloadMedia sending to host:', targetUrl, filename);
+
+      const sent = sendToHost({
         type: 'download',
-        id: nextId(),
+        id: downloadId,
         url: targetUrl,
-        filename: msg.filename || baseName(targetUrl) || 'video.mp4',
+        filename: filename,
         headers,
       });
 
-      sendResponse({ success: true, url: targetUrl });
+      sendResponse({ success: sent, url: targetUrl });
     })();
     return true;
   }
