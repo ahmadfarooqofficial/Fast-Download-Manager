@@ -559,6 +559,8 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
     let deno = find_tool("deno.exe");
 
     let mut args = Vec::new();
+    args.push("--no-playlist".to_string());
+    args.push("--no-warnings".to_string());
     if let Some(deno_path) = deno {
         args.push("--js-runtimes".to_string());
         args.push(format!("deno:{}", deno_path.display()));
@@ -571,7 +573,6 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
     args.push("b/best".to_string());
     args.push(url.to_string());
 
-    let url_owned = url.to_string();
     let filename_owned = filename.clone();
 
     let resolved = tokio::task::spawn_blocking(move || {
@@ -634,7 +635,19 @@ fn find_tool(name: &str) -> Option<PathBuf> {
         }
     }
 
-    // 3. In system PATH
+    // 3. In known workspace & program folders
+    let static_paths = [
+        PathBuf::from(r"D:\Code\FDM\target\release\tools").join(name),
+        PathBuf::from(r"D:\Code\FDM\target\installer-staging\tools").join(name),
+        PathBuf::from(r"C:\Program Files\FDM\tools").join(name),
+    ];
+    for p in static_paths {
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    // 4. In system PATH
     if let Ok(path_var) = std::env::var("PATH") {
         for p in std::env::split_paths(&path_var) {
             let candidate = p.join(name);

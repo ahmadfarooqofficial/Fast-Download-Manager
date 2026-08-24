@@ -2,9 +2,11 @@ $ErrorActionPreference = 'Stop'
 
 $toolsDir = Join-Path $env:LOCALAPPDATA 'FDM\tools'
 $stagingToolsDir = Join-Path $PSScriptRoot '..\target\installer-staging\tools'
+$releaseToolsDir = Join-Path $PSScriptRoot '..\target\release\tools'
 
 New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
 New-Item -ItemType Directory -Force -Path $stagingToolsDir | Out-Null
+New-Item -ItemType Directory -Force -Path $releaseToolsDir | Out-Null
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -15,6 +17,7 @@ if (-not (Test-Path $ytdlpPath)) {
     Invoke-WebRequest -Uri 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe' -OutFile $ytdlpPath -UseBasicParsing
 }
 Copy-Item $ytdlpPath (Join-Path $stagingToolsDir 'yt-dlp.exe') -Force
+Copy-Item $ytdlpPath (Join-Path $releaseToolsDir 'yt-dlp.exe') -Force
 
 # 2. Deno (JavaScript runtime required by YouTube extractor)
 $denoPath = Join-Path $toolsDir 'deno.exe'
@@ -27,6 +30,7 @@ if (-not (Test-Path $denoPath)) {
 }
 if (Test-Path $denoPath) {
     Copy-Item $denoPath (Join-Path $stagingToolsDir 'deno.exe') -Force
+    Copy-Item $denoPath (Join-Path $releaseToolsDir 'deno.exe') -Force
 }
 
-Write-Host "Tools verified successfully in $toolsDir and $stagingToolsDir"
+Write-Host "Tools verified successfully in $toolsDir, $stagingToolsDir, and $releaseToolsDir"
