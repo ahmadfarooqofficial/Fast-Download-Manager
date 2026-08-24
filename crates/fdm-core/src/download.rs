@@ -144,14 +144,13 @@ impl Engine {
         let client = Client::builder()
             .user_agent(cfg.user_agent.clone())
             .connect_timeout(cfg.connect_timeout)
-            // The idle pool has to be at least as large as the connection count,
-            // or finished segments tear down sockets that the next segment then
-            // pays to re-establish. Reusing them is exactly what IDM means by
-            // avoiding "additional connect and login stages".
-            .pool_max_idle_per_host(cfg.max_connections as usize + 2)
-            .pool_idle_timeout(Duration::from_secs(90))
-            // Latency matters more than packet efficiency for many small writes.
+            .pool_max_idle_per_host(cfg.max_connections as usize + 8)
+            .pool_idle_timeout(Duration::from_secs(120))
             .tcp_nodelay(true)
+            .tcp_keepalive(Duration::from_secs(30))
+            .http2_adaptive_window(true)
+            .http2_keep_alive_interval(Duration::from_secs(15))
+            .http2_keep_alive_timeout(Duration::from_secs(10))
             .build()?;
 
         Ok(Self { client, cfg })

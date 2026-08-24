@@ -48,16 +48,19 @@ impl RemoteInfo {
 /// extension (cookies, referer, user-agent) — without them, protected downloads
 /// return a login page rather than the file.
 pub async fn probe(client: &Client, url: &Url, extra: &HeaderMap) -> Result<RemoteInfo> {
-    // Ask for a single byte. A conforming server that supports ranges must
-    // answer 206, which is a far stronger signal than the Accept-Ranges header.
-    let response = client
+    // Ask for a single byte with a fast 5s timeout. A conforming server that supports ranges
+    // answers 206 immediately.
+    let probe_fut = client
         .get(url.clone())
         .headers(extra.clone())
         .header(RANGE, "bytes=0-0")
-        // Compressed transfer would make byte offsets meaningless.
         .header(ACCEPT_ENCODING, "identity")
-        .send()
-        .await?;
+        .send();
+
+    let response = match tokio::time::timeout(std::time::Duration::from_secs(5), probe_fut).await {
+        Ok(res) => res?,
+        Err(_) => return probe_without_range(client, url, extra).await,
+    };
 
     let status = response.status();
 

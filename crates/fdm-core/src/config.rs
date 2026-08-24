@@ -62,18 +62,18 @@ pub struct EngineConfig {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            max_connections: 16,
-            min_split_size: 4 * 1024 * 1024,
-            write_buffer: 1024 * 1024,
+            max_connections: 32,
+            min_split_size: 512 * 1024,
+            write_buffer: 64 * 1024,
             max_retries: 5,
-            connect_timeout: Duration::from_secs(15),
-            read_timeout: Duration::from_secs(30),
-            user_agent: format!("FDM/{}", env!("CARGO_PKG_VERSION")),
+            connect_timeout: Duration::from_secs(8),
+            read_timeout: Duration::from_secs(20),
+            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 FDM/0.1.0".into(),
             download_root: default_download_root(),
             organize_by_type: true,
             temp_dir: default_temp_dir(),
             use_temp_dir: true,
-            progress_interval: Duration::from_millis(250),
+            progress_interval: Duration::from_millis(100),
         }
     }
 }
