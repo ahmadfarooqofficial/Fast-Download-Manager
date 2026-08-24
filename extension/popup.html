@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>FDM</title>
+<title>FDM — Fast Download Manager</title>
 <link rel="stylesheet" href="styles/tokens.css">
 <link rel="stylesheet" href="popup.css">
 </head>
@@ -39,14 +39,22 @@
     <span class="bar__name">FDM</span>
   </div>
 
-  <!-- A real checkbox with role="switch": keyboard-operable and announced with
-       its state, which a styled div cannot manage. -->
-  <label class="switch">
-    <span class="switch__label" id="capture-label">Take over downloads</span>
-    <input type="checkbox" id="capture" role="switch" aria-labelledby="capture-label">
+  <div class="switches-container">
+    <label class="switch" title="Toggle automatic download interception">
+      <span class="switch__label" id="capture-label">Capture Downloads</span>
+      <input type="checkbox" id="capture" role="switch" aria-labelledby="capture-label">
+      <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+    </label>
+  </div>
+</header>
+
+<div class="sniffer-row">
+  <label class="switch" title="Show IDM-style download button on videos and audios across web pages">
+    <span class="switch__label" id="sniffer-label">Video &amp; Audio Download Button</span>
+    <input type="checkbox" id="sniffer" role="switch" aria-labelledby="sniffer-label">
     <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
   </label>
-</header>
+</div>
 
 <div class="banner" id="banner" role="status" aria-live="polite" hidden>
   <svg width="16" height="16" aria-hidden="true"><use href="#i-alert"/></svg>

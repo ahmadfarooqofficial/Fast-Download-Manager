@@ -176,7 +176,7 @@ pub fn open_download_dialog(app: &tauri::AppHandle, id: u64) {
     let url = tauri::WebviewUrl::App(format!("download_dialog.html?id={}", id).into());
     if let Ok(win) = tauri::WebviewWindowBuilder::new(app, &label, url)
         .title("FDM — Download Progress")
-        .inner_size(540.0, 380.0)
+        .inner_size(580.0, 400.0)
         .resizable(false)
         .center()
         .always_on_top(true)

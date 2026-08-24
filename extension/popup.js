@@ -11,6 +11,7 @@
 
 const el = {
   capture: document.getElementById('capture'),
+  sniffer: document.getElementById('sniffer'),
   banner: document.getElementById('banner'),
   bannerText: document.getElementById('banner-text'),
   list: document.getElementById('list'),
@@ -34,11 +35,15 @@ function safePost(msg) {
   }
 }
 
-el.capture.addEventListener('change', () => {
+el.capture?.addEventListener('change', () => {
   safePost({ type: 'setEnabled', enabled: el.capture.checked });
 });
 
-el.clear.addEventListener('click', () => {
+el.sniffer?.addEventListener('change', () => {
+  safePost({ type: 'setMediaSniffer', enabled: el.sniffer.checked });
+});
+
+el.clear?.addEventListener('click', () => {
   safePost({ type: 'clear' });
 });
 
@@ -50,7 +55,8 @@ const BANNERS = {
 };
 
 function render(state) {
-  el.capture.checked = !!state.enabled;
+  if (el.capture) el.capture.checked = !!state.enabled;
+  if (el.sniffer) el.sniffer.checked = state.mediaSniffer !== false;
 
   const banner = BANNERS[state.hostState];
   el.banner.hidden = !banner;

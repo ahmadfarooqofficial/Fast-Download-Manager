@@ -35,6 +35,9 @@ const DEFAULT_SETTINGS = {
   /** Master switch. Off means Chrome downloads everything itself. */
   enabled: true,
 
+  /** Media sniffer floating button on web video/audio players. */
+  mediaSniffer: true,
+
   /**
    * Never take over these. Not a performance filter — these are the extensions
    * that show up when a *page* is served as a download (a login redirect, an
@@ -575,6 +578,11 @@ async function onUiMessage(msg, p) {
       safePost(p, snapshot());
       break;
 
+    case 'setMediaSniffer':
+      capturePolicy = await setSettings({ mediaSniffer: !!msg.enabled });
+      safePost(p, snapshot());
+      break;
+
     case 'cancel':
       sendToHost({ type: 'cancel', id: msg.id });
       break;
@@ -600,6 +608,7 @@ function snapshot() {
     hostState,
     hostInfo,
     enabled: capturePolicy.enabled,
+    mediaSniffer: capturePolicy.mediaSniffer !== false,
     protocol: PROTOCOL_VERSION,
     extensionVersion: chrome.runtime.getManifest().version,
     downloads: [...active.values()].sort((a, b) => b.startedAt - a.startedAt),
@@ -714,3 +723,54 @@ chrome.runtime.onStartup.addListener(async () => {
   await restore();
   await refreshBadge();
 })();
+
+// -------------------------------------------------------- Media Sniffer Comms
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'downloadMedia' && msg.url) {
+    (async () => {
+      const headers = await collectHeaders(msg.url, msg.pageUrl || sender.tab?.url);
+      sendToHost({
+        type: 'download',
+        id: nextId(),
+        url: msg.url,
+        filename: msg.filename || baseName(msg.url) || 'video.mp4',
+        headers,
+      });
+      sendResponse({ success: true });
+    })();
+    return true;
+  }
+
+  if (msg?.type === 'getMediaSettings') {
+    getSettings().then((s) => sendResponse(s));
+    return true;
+  }
+});
+
+try {
+  chrome.webRequest?.onHeadersReceived?.addListener(
+    (details) => {
+      if (!capturePolicy.enabled || capturePolicy.mediaSniffer === false) return;
+      if (details.tabId < 0) return;
+
+      const ct = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value?.toLowerCase() || '';
+      const isMedia = ct.startsWith('video/') || ct.startsWith('audio/') || 
+                      ct.includes('vnd.apple.mpegurl') || ct.includes('x-mpegurl') ||
+                      details.url.match(/\.(mp4|m4v|webm|mkv|m4a|mp3|m3u8|flv|ts)(\?.*)?$/i);
+
+      if (isMedia && !details.url.startsWith('blob:')) {
+        chrome.tabs.sendMessage(details.tabId, {
+          type: 'mediaStreamDetected',
+          url: details.url,
+          contentType: ct,
+        }).catch(() => {});
+      }
+    },
+    { urls: ['http://*/*', 'https://*/*'] },
+    ['responseHeaders']
+  );
+} catch (e) {
+  console.debug('[fdm] webRequest media listener setup:', e);
+}
+

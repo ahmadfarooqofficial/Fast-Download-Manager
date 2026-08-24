@@ -951,11 +951,41 @@ button {
   font-family: var(--fdm-font-mono);
 }
 
+.dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.dialog-actions-left {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dialog-actions-right {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dialog-actions .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
 .celebrate-actions {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: var(--fdm-space-3);
+  gap: 12px;
   margin-top: auto;
 }
 

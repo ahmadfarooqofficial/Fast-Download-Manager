@@ -146,6 +146,20 @@ body {
   outline-offset: var(--fdm-focus-offset);
 }
 
+.sniffer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--fdm-space-2) var(--fdm-space-4);
+  background: var(--fdm-surface-1);
+  border-bottom: var(--fdm-border-width) solid var(--fdm-border);
+}
+
+.sniffer-row .switch {
+  width: 100%;
+  justify-content: space-between;
+}
+
 /* ---------------------------------------------------------------- banner */
 
 .banner {
