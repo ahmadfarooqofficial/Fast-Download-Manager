@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="FDM">
+  <title>FDM mark</title>
+  <!--
+    A download arrow built out of parallel streams.
+    Centre stem runs into the arrowhead vertex so they read as one solid arrow;
+    the flanking bars stop 20 units clear of the arms. That gap is load-bearing —
+    without it the mark collapses into a triangle at small sizes.
+  -->
+  <g fill="#E50914">
+    <rect x="170" y="116" width="52" height="116" rx="26" />
+    <rect x="230" y="116" width="52" height="210" rx="26" />
+    <rect x="290" y="116" width="52" height="116" rx="26" />
+  </g>
+  <path d="M172 278 L256 362 L340 278"
+        fill="none"
+        stroke="#E50914"
+        stroke-width="52"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+</svg>

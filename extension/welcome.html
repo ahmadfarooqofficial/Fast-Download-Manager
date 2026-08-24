@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Neutral until the ping answers; welcome.js rewrites it per state. A tab
+     reading "FDM is set up" while the app is missing is the same lie the page
+     itself is built to avoid. -->
+<title>FDM — Setup</title>
+<link rel="icon" href="icons/icon-32.png">
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="welcome.css">
+</head>
+<body>
+
+<!-- Icon sprite. Inline so the page has no network dependency and no separate
+     request: this page is the first thing the user sees after enabling the
+     extension, and it must render instantly even offline. -->
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>
+  </symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4.5 2.7 20h18.6L12 4.5Z"/><path d="M12 10v4"/><path d="M12 17h.01"/>
+  </symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>
+  </symbol>
+  <symbol id="i-spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round">
+    <path d="M12 3a9 9 0 1 0 9 9" />
+  </symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/>
+  </symbol>
+  <symbol id="i-split" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6h4l4 6 4-6h4"/><path d="M4 18h4l4-6"/><path d="M16 18h4"/>
+  </symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4L11 8.5h8.5A1.5 1.5 0 0 1 21 10v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18Z"/>
+  </symbol>
+  <symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>
+  </symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>
+  </symbol>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="masthead">
+  <div class="masthead__brand">
+    <img class="masthead__mark" src="icons/icon-48.png" width="32" height="32"
+         alt="" aria-hidden="true">
+    <div class="masthead__words">
+      <span class="masthead__name">FDM</span>
+      <span class="masthead__sub">Fast Download Manager</span>
+    </div>
+  </div>
+  <span class="chip fdm-selectable" id="ext-version">extension —</span>
+</header>
+
+<main id="main">
+
+  <!-- The state-driven part. Everything the user is told about their setup comes
+       from a live ping to fdm-host.exe, never from the fact that this page
+       loaded. A welcome page that says "all set up!" while the desktop app is
+       missing is worse than no welcome page. -->
+  <section class="card card--status" id="status" data-state="checking"
+           role="status" aria-live="polite">
+    <div class="status__icon" aria-hidden="true">
+      <svg class="status__glyph" width="28" height="28"><use href="#i-spinner"/></svg>
+    </div>
+    <div class="status__body">
+      <h1 class="status__headline" id="headline">Checking your setup…</h1>
+      <p class="status__lede" id="lede">Talking to the FDM desktop app.</p>
+
+      <div class="status__extra" id="fixit" hidden>
+        <ol class="steps-list">
+          <li>Make sure the <strong>FDM desktop app</strong> is installed — run
+            <code class="fdm-selectable">FDM-Setup.exe</code> if you have not yet.</li>
+          <li><strong>Restart Chrome completely</strong> (close every window).
+            Chrome only reads the list of native apps at startup.</li>
+          <li>Come back here and press Check again.</li>
+        </ol>
+        <button class="btn btn--primary" type="button" id="retry">
+          <svg width="18" height="18" aria-hidden="true"><use href="#i-retry"/></svg>
+          Check again
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Facts, populated from the pong payload. Hidden until there is something
+       true to put in it. -->
+  <section class="facts" id="facts" hidden aria-labelledby="facts-h">
+    <h2 class="section-title" id="facts-h">Your setup</h2>
+    <dl class="facts__grid">
+      <div class="fact fact--wide">
+        <dt>Downloads are saved to</dt>
+        <dd class="fdm-selectable" id="fact-root">—</dd>
+      </div>
+      <div class="fact">
+        <dt>Parallel connections</dt>
+        <dd class="fdm-num" id="fact-connections">—</dd>
+      </div>
+      <div class="fact">
+        <dt>Engine version</dt>
+        <dd class="fdm-selectable" id="fact-version">—</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section aria-labelledby="how-h">
+    <h2 class="section-title" id="how-h">What happens now</h2>
+    <ul class="cards">
+      <li class="card card--how">
+        <svg class="card__icon" width="22" height="22" aria-hidden="true"><use href="#i-download"/></svg>
+        <h3>Click a link as usual</h3>
+        <p>Chrome hands the download straight to FDM. There is nothing new to
+          click and no button to remember.</p>
+      </li>
+      <li class="card card--how">
+        <svg class="card__icon" width="22" height="22" aria-hidden="true"><use href="#i-split"/></svg>
+        <h3>FDM splits the file</h3>
+        <p>It opens many connections at once and keeps re-splitting whichever
+          part is slowest, so one bad connection cannot hold up the rest.</p>
+      </li>
+      <li class="card card--how">
+        <svg class="card__icon" width="22" height="22" aria-hidden="true"><use href="#i-folder"/></svg>
+        <h3>It lands in the right folder</h3>
+        <p>Files are sorted by type as they finish, so your Downloads folder
+          stops being a pile.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section id="folders-section" hidden aria-labelledby="folders-h">
+    <h2 class="section-title" id="folders-h">Folders FDM will use</h2>
+    <ul class="chips" id="folders"></ul>
+  </section>
+
+  <section class="card card--note">
+    <svg class="card__icon" width="20" height="20" aria-hidden="true"><use href="#i-info"/></svg>
+    <div>
+      <h3>Downloads FDM leaves alone</h3>
+      <p>Private-window downloads, and links that only exist inside a page
+        (<code>blob:</code> and <code>data:</code>), stay with Chrome — a
+        separate app cannot fetch those. You can turn takeover off at any time
+        from the FDM button in the toolbar.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <a href="https://github.com/ahmadfarooq/fdm" target="_blank" rel="noreferrer">
+    Source code and issues
+    <svg width="14" height="14" aria-hidden="true"><use href="#i-external"/></svg>
+  </a>
+  <span class="footer__dot" aria-hidden="true">·</span>
+  <span>Free and open source, MIT licensed</span>
+  <span class="footer__dot" aria-hidden="true">·</span>
+  <span>Built by Ahmad Farooq</span>
+</footer>
+
+<script src="lib/format.js"></script>
+<script src="welcome.js"></script>
+</body>
+</html>

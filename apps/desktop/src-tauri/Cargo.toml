@@ -1,0 +1,27 @@
+[package]
+name = "fdm-desktop"
+version = "0.1.0"
+description = "Fast Download Manager"
+authors = ["Ahmad Farooq"]
+edition = "2021"
+rust-version = "1.80"
+
+[[bin]]
+name = "fdm-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = "2"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+url = "2"
+reqwest = { workspace = true }
+fdm-manager = { path = "../../../crates/fdm-manager" }
+fdm-ipc = { path = "../../../crates/fdm-ipc" }
+fdm-core = { path = "../../../crates/fdm-core" }

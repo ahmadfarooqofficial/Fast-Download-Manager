@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="FDM">
+  <title>FDM mark, small-size variant</title>
+  <!--
+    For use below 32px (tray icon, extension toolbar, favicon).
+
+    Two differences from fdm-mark.svg, both forced by the pixel grid:
+      1. The flanking bars are gone. At 16px their 8-unit gaps land on a third
+         of a pixel and the three bars anti-alias into one solid block — which
+         destroys the exact thing they exist to communicate.
+      2. The mark fills 400 of the 512 grid (78%) instead of 55%. A small icon
+         has no room for clear space; the surrounding UI supplies it.
+
+    Geometry, with stroke half-width h = 48:
+      apex (256, 408), arms to (104, 256) and (408, 256) at 45 degrees
+      round join puts the lowest point at 408 + h = 456
+      round caps put the outer edges at 104 - h = 56 and 408 + h = 456
+    So the mark is exactly inscribed in 56..456 on both axes: optically centred.
+  -->
+  <rect x="208" y="56" width="96" height="300" rx="48" fill="#E50914" />
+  <path d="M104 256 L256 408 L408 256"
+        fill="none"
+        stroke="#E50914"
+        stroke-width="96"
+        stroke-linecap="round"
+        stroke-linejoin="round" />
+</svg>

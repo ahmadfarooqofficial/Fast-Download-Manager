@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fdm-core",
+    "crates/fdm-cli",
+    "crates/fdm-host",
+    "crates/fdm-ipc",
+    "crates/fdm-manager",
+    "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.80"
+authors = ["Ahmad Farooq"]
+license = "MIT"
+repository = "https://github.com/ahmadfarooq/fdm"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "http2"] }
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+url = "2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+# Deliberately NOT panic = "abort". A panic in one segment worker has to unwind
+# into a JoinError so the coordinator can flush the resume state and keep the
+# `.part` file usable. Aborting would lose the whole transfer.

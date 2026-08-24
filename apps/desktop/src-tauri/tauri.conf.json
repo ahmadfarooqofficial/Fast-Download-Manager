@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.tauri.app/2.0.0/tauri.schema.json",
+  "productName": "Fast Download Manager",
+  "version": "0.1.0",
+  "identifier": "com.fdm.app",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Fast Download Manager",
+        "width": 1000,
+        "height": 700,
+        "theme": "Dark",
+        "decorations": false,
+        "transparent": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "trayIcon": {
+      "iconPath": "icons/icon.ico"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

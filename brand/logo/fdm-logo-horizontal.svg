@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 452 96" width="452" height="96" role="img" aria-label="FDM — Fast Download Manager">
+  <title>FDM — Fast Download Manager (horizontal lockup)</title>
+  <!-- Clear space: 8 units all round, ≈ one bar width at this scale. -->
+
+  <g transform="translate(8 16) scale(0.125)">
+    <rect width="512" height="512" rx="112" fill="#0A0A0A" />
+    <g fill="#E50914">
+      <rect x="170" y="116" width="52" height="116" rx="26" />
+      <rect x="230" y="116" width="52" height="210" rx="26" />
+      <rect x="290" y="116" width="52" height="116" rx="26" />
+    </g>
+    <path d="M172 278 L256 362 L340 278"
+          fill="none" stroke="#E50914" stroke-width="52"
+          stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <text x="92" y="50"
+        font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="40" font-weight="800" letter-spacing="-1.2"
+        fill="#F8FAFC">FDM</text>
+
+  <text x="94" y="71"
+        font-family="Inter, 'Segoe UI', system-ui, -apple-system, sans-serif"
+        font-size="11" font-weight="600" letter-spacing="3.4"
+        fill="#94A3B8">FAST DOWNLOAD MANAGER</text>
+</svg>

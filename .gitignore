@@ -1,0 +1,31 @@
+/target
+**/target
+Cargo.lock
+
+# Downloaded test artifacts
+/testdata
+*.part
+*.fdm
+*.fdm.tmp
+
+# Node / extension tooling
+node_modules/
+dist/
+
+# Installer output
+/installer/output
+*.exe
+*.msi
+
+# Bundled sidecars (fetched at build time, not committed)
+/sidecars/
+
+# Secrets and packages
+*.pem
+*.crx
+
+# Editor and agent
+.vscode/
+.idea/
+.claude/
+*.swp

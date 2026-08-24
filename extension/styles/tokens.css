@@ -1,0 +1,311 @@
+/* ==========================================================================
+   FDM — Fast Download Manager · design tokens
+   Single source of truth for the UI. Generated from brand/BRAND.md; if a value
+   here disagrees with BRAND.md, BRAND.md wins and this file is the bug.
+
+   FDM is dark-only. There is no light theme and no `prefers-color-scheme`
+   branch: the product is a black-surfaced desktop tool, and a half-finished
+   light mode is worse than none.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------------------------------------------------------------- colour */
+
+  /* Brand red. Contrast on --fdm-bg is 4.21:1 — that clears the 3:1 non-text
+     and large-text bar but NOT the 4.5:1 body-text bar. Fills, borders, icons,
+     and large numerals only. For red text at body size use --fdm-red-text. */
+  --fdm-red: #e50914;
+  --fdm-red-text: #ff4b4b;   /* 6.11:1 on --fdm-bg — AA at body size */
+  --fdm-red-hover: #ff1a25;
+  --fdm-red-press: #b80710;
+  --fdm-on-red: #ffffff;     /* 4.79:1 on --fdm-red — AA */
+
+  /* Red at opacity, for paused fills and subtle washes. Pre-mixed rather than
+     applied with `opacity`, so a paused bar doesn't fade its own tick marks. */
+  --fdm-red-40: #5c1519;
+  --fdm-red-12: #1d0b12;
+
+  /* Surfaces, dark to light. Every step is a real elevation level — don't
+     invent intermediate values inline. */
+  --fdm-bg: #020617;
+  --fdm-surface: #0e1223;
+  --fdm-surface-2: #1a1e2f;
+  --fdm-border: #334155;       /* 3.1:1 vs --fdm-surface — AA non-text */
+  --fdm-border-strong: #475569;
+
+  /* Foreground */
+  --fdm-fg: #f8fafc;           /* 17.9:1 — AAA */
+  --fdm-fg-muted: #94a3b8;     /* 6.9:1  — AA  */
+  --fdm-fg-subtle: #64748b;    /* 3.5:1  — disabled text ONLY, never body copy */
+
+  /* Status. Never the only carrier of meaning — always pair with icon or word.
+     --fdm-danger is deliberately not --fdm-red: if a failed row and a running
+     progress bar were the same red, a healthy download would look broken. */
+  --fdm-success: #22c55e;
+  --fdm-warning: #f59e0b;
+  --fdm-danger: #ef4444;
+  --fdm-info: #38bdf8;
+
+  --fdm-focus: var(--fdm-red);
+
+  /* ------------------------------------------------------------ typography */
+
+  --fdm-font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui,
+    -apple-system, sans-serif;
+  --fdm-font-mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  --fdm-text-display: 2rem;      /* 32px / 700 — empty states, onboarding */
+  --fdm-text-title: 1.5rem;      /* 24px / 600 */
+  --fdm-text-subtitle: 1.125rem; /* 18px / 600 */
+  --fdm-text-body-lg: 1rem;      /* 16px / 400 */
+  --fdm-text-body: 0.875rem;     /* 14px / 400 — desktop-dense default */
+  --fdm-text-label: 0.8125rem;   /* 13px / 500 */
+  --fdm-text-caption: 0.75rem;   /* 12px / 400 */
+
+  --fdm-weight-regular: 400;
+  --fdm-weight-medium: 500;
+  --fdm-weight-semibold: 600;
+  --fdm-weight-bold: 700;
+  --fdm-weight-black: 800;       /* wordmark only */
+
+  --fdm-leading-prose: 1.5;
+  --fdm-leading-dense: 1.3;      /* table rows */
+  --fdm-tracking-tight: -0.01em; /* Display and Title */
+  --fdm-tracking-caps: 0.28em;   /* the FAST DOWNLOAD MANAGER subline */
+
+  /* --------------------------------------------------------------- spacing */
+  /* 4px base. Desktop-dense: a download row is one --fdm-space-3 of padding. */
+
+  --fdm-space-0: 0;
+  --fdm-space-1: 0.25rem;  /*  4px */
+  --fdm-space-2: 0.5rem;   /*  8px */
+  --fdm-space-3: 0.75rem;  /* 12px */
+  --fdm-space-4: 1rem;     /* 16px */
+  --fdm-space-5: 1.25rem;  /* 20px */
+  --fdm-space-6: 1.5rem;   /* 24px */
+  --fdm-space-8: 2rem;     /* 32px */
+  --fdm-space-10: 2.5rem;  /* 40px */
+  --fdm-space-12: 3rem;    /* 48px */
+
+  /* ---------------------------------------------------------------- shape */
+
+  --fdm-radius-xs: 2px;    /* progress bars */
+  --fdm-radius-sm: 4px;    /* inputs, chips */
+  --fdm-radius-md: 6px;    /* buttons */
+  --fdm-radius-lg: 10px;   /* cards, panels */
+  --fdm-radius-xl: 16px;   /* modals */
+  --fdm-radius-full: 9999px;
+
+  --fdm-border-width: 1px;
+  --fdm-focus-width: 2px;
+  --fdm-focus-offset: 2px;
+
+  /* --------------------------------------------------------------- icons */
+
+  --fdm-icon-sm: 16px;   /* dense lists */
+  --fdm-icon-md: 20px;   /* toolbar */
+  --fdm-icon-lg: 24px;
+  --fdm-icon-stroke: 1.5px;
+
+  /* -------------------------------------------------------------- shadows */
+  /* On near-black, shadows barely read — elevation comes from surface steps.
+     These exist for genuinely floating layers only. */
+
+  --fdm-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --fdm-shadow-md: 0 4px 12px rgb(0 0 0 / 0.45);
+  --fdm-shadow-lg: 0 16px 40px rgb(0 0 0 / 0.55);
+
+  /* --------------------------------------------------------------- motion */
+  /* Subtle tier (3/10). Nothing in a download manager should feel animated;
+     it should feel responsive. */
+
+  --fdm-duration-fast: 120ms;
+  --fdm-duration-base: 200ms;
+  --fdm-duration-slow: 250ms;
+  --fdm-ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94); /* ≈ power1.out */
+  --fdm-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+
+  /* --------------------------------------------------------------- layout */
+
+  --fdm-titlebar-h: 40px;
+  --fdm-sidebar-w: 220px;
+  --fdm-row-h: 56px;
+  --fdm-progress-h: 4px;         /* in list rows */
+  --fdm-progress-h-detail: 6px;  /* in the detail panel */
+  --fdm-z-dropdown: 100;
+  --fdm-z-modal: 300;
+  --fdm-z-toast: 400;
+}
+
+/* ==========================================================================
+   Primitives
+   Only the rules that are genuinely global. Components live in the app, not
+   here — this file must stay readable as a token reference.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--fdm-bg);
+  color: var(--fdm-fg);
+  font-family: var(--fdm-font-sans);
+  font-size: var(--fdm-text-body);
+  line-height: var(--fdm-leading-prose);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A desktop app is not a document: no accidental text selection, and no
+   overscroll rubber-banding on the window shell. */
+body {
+  user-select: none;
+  overscroll-behavior: none;
+}
+
+input,
+textarea,
+[contenteditable],
+.fdm-selectable {
+  user-select: text;
+}
+
+/* Every number that ticks. Non-negotiable — without tabular figures the whole
+   download list twitches sideways on each progress update. */
+.fdm-num,
+.fdm-speed,
+.fdm-size,
+.fdm-eta,
+.fdm-percent,
+progress,
+td[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+:where(a) {
+  color: var(--fdm-red-text);
+  text-decoration-color: color-mix(in srgb, var(--fdm-red-text) 45%, transparent);
+  text-underline-offset: 2px;
+}
+
+:where(a):hover {
+  color: var(--fdm-red-hover);
+}
+
+/* One focus treatment everywhere. Keyboard-only, so pointer users don't get
+   rings on click, but keyboard users never lose their place. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: var(--fdm-focus-width) solid var(--fdm-focus);
+  outline-offset: var(--fdm-focus-offset);
+  border-radius: var(--fdm-radius-sm);
+}
+
+::selection {
+  background: var(--fdm-red-40);
+  color: var(--fdm-fg);
+}
+
+/* Scrollbars, dark. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fdm-border) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--fdm-border);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: var(--fdm-radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fdm-border-strong);
+  background-clip: content-box;
+}
+
+/* --------------------------------------------------------------------------
+   Progress bar
+   The product's thesis rendered as one element. The repeating-gradient draws
+   1px --fdm-bg ticks over the fill at segment boundaries, so the user can see
+   the parallel connections working. `--fdm-segments` is set per-row by JS;
+   `--fdm-value` is a 0–100 number.
+   -------------------------------------------------------------------------- */
+
+.fdm-progress {
+  --fdm-value: 0;
+  --fdm-segments: 1;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: var(--fdm-progress-h);
+  border-radius: var(--fdm-radius-xs);
+  background: var(--fdm-surface-2);
+}
+
+.fdm-progress__fill {
+  height: 100%;
+  width: calc(var(--fdm-value) * 1%);
+  border-radius: inherit;
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(100% / var(--fdm-segments) - 1px),
+      var(--fdm-bg) calc(100% / var(--fdm-segments) - 1px),
+      var(--fdm-bg) calc(100% / var(--fdm-segments))
+    ),
+    var(--fdm-red);
+  transition: width var(--fdm-duration-base) var(--fdm-ease-out);
+}
+
+.fdm-progress[data-state="paused"] .fdm-progress__fill {
+  background: var(--fdm-red-40);
+}
+
+.fdm-progress[data-state="completed"] .fdm-progress__fill {
+  background: var(--fdm-success);
+}
+
+.fdm-progress[data-state="failed"] .fdm-progress__fill {
+  background: var(--fdm-danger);
+}
+
+.fdm-progress--detail {
+  height: var(--fdm-progress-h-detail);
+}
+
+/* Someone watching a 40 GB download does not need our transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

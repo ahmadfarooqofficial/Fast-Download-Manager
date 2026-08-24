@@ -1,0 +1,445 @@
+/* ==========================================================================
+   FDM — welcome page ("all set up")
+   Layers on top of styles/tokens.css, which is a verbatim copy of
+   brand/tokens/fdm-tokens.css. Tokens only — no raw hex below except where a
+   token genuinely does not exist.
+
+   Minimalism / Swiss: one column, generous vertical rhythm, hierarchy from size
+   and spacing rather than colour. Red appears three times on the whole page.
+   ========================================================================== */
+
+/* tokens.css locks selection off, which is right for the desktop app shell and
+   wrong for a page of prose someone may want to copy a path out of. */
+body {
+  user-select: text;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--fdm-space-6) var(--fdm-space-5) var(--fdm-space-10);
+  gap: var(--fdm-space-8);
+}
+
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.skip {
+  position: absolute;
+  left: var(--fdm-space-4);
+  top: calc(var(--fdm-space-4) * -4);
+  z-index: var(--fdm-z-toast);
+  padding: var(--fdm-space-2) var(--fdm-space-4);
+  background: var(--fdm-surface-2);
+  border-radius: var(--fdm-radius-md);
+  color: var(--fdm-fg);
+  text-decoration: none;
+  transition: top var(--fdm-duration-fast) var(--fdm-ease-out);
+}
+
+.skip:focus-visible {
+  top: var(--fdm-space-4);
+}
+
+/* --------------------------------------------------------------- masthead */
+
+/* One shell width, shared by masthead, main and footer so the three stay in the
+   same vertical column. 60rem is the narrowest width at which the three "what
+   happens now" cards still hold ~35 characters a line; below it they degrade to
+   four-word lines, which reads as broken rather than dense. Prose blocks inside
+   are capped to their own measure, so widening the shell does not widen the
+   reading line. */
+:root {
+  --shell: 60rem;
+}
+
+.masthead {
+  width: 100%;
+  max-width: var(--shell);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fdm-space-4);
+}
+
+.masthead__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-3);
+}
+
+.masthead__mark {
+  display: block;
+  border-radius: var(--fdm-radius-sm);
+}
+
+.masthead__words {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.masthead__name {
+  font-size: var(--fdm-text-subtitle);
+  font-weight: var(--fdm-weight-black);
+  letter-spacing: var(--fdm-tracking-tight);
+}
+
+.masthead__sub {
+  font-size: 0.625rem;
+  font-weight: var(--fdm-weight-medium);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fdm-fg-muted);
+}
+
+.chip {
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+  padding: var(--fdm-space-1) var(--fdm-space-3);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  border-radius: var(--fdm-radius-full);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------- main */
+
+main {
+  width: 100%;
+  max-width: var(--shell);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fdm-space-10);
+}
+
+.section-title {
+  margin: 0 0 var(--fdm-space-4);
+  font-size: var(--fdm-text-label);
+  font-weight: var(--fdm-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fdm-fg-muted);
+}
+
+.card {
+  background: var(--fdm-surface);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  border-radius: var(--fdm-radius-lg);
+  padding: var(--fdm-space-6);
+}
+
+/* ---------------------------------------------------------- status card */
+/* The hero. Its state is set by welcome.js from a live ping, and every state
+   carries an icon and a word — never colour alone. */
+
+.card--status {
+  display: flex;
+  gap: var(--fdm-space-5);
+  align-items: flex-start;
+  padding: var(--fdm-space-8) var(--fdm-space-6);
+}
+
+.status__icon {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--fdm-radius-full);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  background: var(--fdm-surface-2);
+  color: var(--fdm-fg-muted);
+}
+
+.status__body {
+  min-width: 0;
+}
+
+.status__headline {
+  margin: 0;
+  font-size: var(--fdm-text-title);
+  font-weight: var(--fdm-weight-bold);
+  letter-spacing: var(--fdm-tracking-tight);
+  text-wrap: balance;
+}
+
+.status__lede {
+  margin: var(--fdm-space-2) 0 0;
+  font-size: var(--fdm-text-body-lg);
+  color: var(--fdm-fg-muted);
+  max-width: 56ch;
+  overflow-wrap: anywhere;
+}
+
+.status__extra {
+  margin-top: var(--fdm-space-6);
+}
+
+[data-state='checking'] .status__glyph {
+  animation: spin 900ms linear infinite;
+}
+
+[data-state='ok'] .status__icon {
+  color: var(--fdm-success);
+  border-color: color-mix(in srgb, var(--fdm-success) 40%, transparent);
+  background: color-mix(in srgb, var(--fdm-success) 12%, var(--fdm-surface-2));
+}
+
+[data-state='missing'] .status__icon {
+  color: var(--fdm-danger);
+  border-color: color-mix(in srgb, var(--fdm-danger) 40%, transparent);
+  background: color-mix(in srgb, var(--fdm-danger) 12%, var(--fdm-surface-2));
+}
+
+[data-state='mismatch'] .status__icon {
+  color: var(--fdm-warning);
+  border-color: color-mix(in srgb, var(--fdm-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--fdm-warning) 12%, var(--fdm-surface-2));
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.steps-list {
+  margin: 0 0 var(--fdm-space-6);
+  padding-left: var(--fdm-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fdm-space-3);
+  color: var(--fdm-fg-muted);
+  max-width: 60ch;
+}
+
+.steps-list strong {
+  color: var(--fdm-fg);
+  font-weight: var(--fdm-weight-semibold);
+}
+
+code {
+  font-family: var(--fdm-font-mono);
+  font-size: 0.9em;
+  padding: 0.1em 0.4em;
+  border-radius: var(--fdm-radius-sm);
+  background: var(--fdm-surface-2);
+  color: var(--fdm-fg);
+  overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------- button */
+
+.btn {
+  /* 44px minimum height: this is the only control on the page, and it is the
+     one a stuck user has to hit. */
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  padding: 0 var(--fdm-space-5);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  border-radius: var(--fdm-radius-md);
+  background: var(--fdm-surface-2);
+  color: var(--fdm-fg);
+  font: inherit;
+  font-weight: var(--fdm-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--fdm-duration-base) var(--fdm-ease-out),
+    border-color var(--fdm-duration-base) var(--fdm-ease-out);
+}
+
+.btn:hover {
+  border-color: var(--fdm-border-strong);
+  background: color-mix(in srgb, var(--fdm-fg) 8%, var(--fdm-surface-2));
+}
+
+.btn--primary {
+  background: var(--fdm-red);
+  border-color: var(--fdm-red);
+  color: var(--fdm-on-red);
+}
+
+.btn--primary:hover {
+  background: var(--fdm-red-hover);
+  border-color: var(--fdm-red-hover);
+}
+
+.btn--primary:active {
+  background: var(--fdm-red-press);
+  border-color: var(--fdm-red-press);
+}
+
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ----------------------------------------------------------------- facts */
+
+.facts__grid {
+  margin: 0;
+  display: grid;
+  /* rem, not ch: `ch` resolves against whichever font actually loaded, and the
+     Segoe fallback is narrow enough to fit a third column that leaves a long
+     Windows path wrapping over six lines. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--fdm-space-1);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  border-radius: var(--fdm-radius-lg);
+  overflow: hidden;
+  background: var(--fdm-border);
+}
+
+.fact {
+  background: var(--fdm-surface);
+  padding: var(--fdm-space-4) var(--fdm-space-5);
+  min-width: 0;
+}
+
+/* The download path is the one fact with no spaces to break at, so it gets the
+   whole row. Three facts in a two-column grid then fill it exactly, with no
+   empty cell showing through as a border-coloured hole. */
+.fact--wide {
+  grid-column: 1 / -1;
+}
+
+.fact dt {
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+}
+
+.fact dd {
+  margin: var(--fdm-space-1) 0 0;
+  font-size: var(--fdm-text-body-lg);
+  font-weight: var(--fdm-weight-medium);
+  /* Windows paths are long and have no spaces to break at. */
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- how cards */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--fdm-space-4);
+}
+
+.card--how {
+  padding: var(--fdm-space-5);
+}
+
+.card__icon {
+  color: var(--fdm-red);
+  display: block;
+}
+
+.card--how h3 {
+  margin: var(--fdm-space-4) 0 var(--fdm-space-2);
+  font-size: var(--fdm-text-body-lg);
+  font-weight: var(--fdm-weight-semibold);
+}
+
+.card--how p,
+.card--note p {
+  margin: 0;
+  color: var(--fdm-fg-muted);
+  /* The shell is wider than a comfortable reading line; the prose is not. */
+  max-width: 72ch;
+}
+
+.card--note {
+  display: flex;
+  gap: var(--fdm-space-4);
+  align-items: flex-start;
+  padding: var(--fdm-space-5);
+  background: var(--fdm-surface);
+}
+
+.card--note .card__icon {
+  color: var(--fdm-info);
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.card--note h3 {
+  margin: 0 0 var(--fdm-space-2);
+  font-size: var(--fdm-text-body-lg);
+  font-weight: var(--fdm-weight-semibold);
+}
+
+/* ----------------------------------------------------------------- chips */
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* Wrap the collection rather than shrinking the labels. */
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fdm-space-2);
+}
+
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  padding: var(--fdm-space-2) var(--fdm-space-4);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  border-radius: var(--fdm-radius-full);
+  background: var(--fdm-surface);
+  font-size: var(--fdm-text-label);
+}
+
+.chips svg {
+  color: var(--fdm-fg-subtle);
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------------- footer */
+
+.footer {
+  width: 100%;
+  max-width: var(--shell);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  padding-top: var(--fdm-space-6);
+  border-top: var(--fdm-border-width) solid var(--fdm-border);
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+}
+
+.footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdm-space-1);
+  /* 24×24 minimum pointer target for a link that sits in a row of text. */
+  min-height: 24px;
+}
+
+.footer__dot {
+  color: var(--fdm-fg-subtle);
+}
+
+/* ------------------------------------------------------------ narrow view */
+
+@media (max-width: 30rem) {
+  .card--status {
+    flex-direction: column;
+    gap: var(--fdm-space-4);
+    padding: var(--fdm-space-6) var(--fdm-space-5);
+  }
+
+  .status__headline {
+    font-size: var(--fdm-text-subtitle);
+  }
+}

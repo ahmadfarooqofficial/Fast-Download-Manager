@@ -1,0 +1,13 @@
+{
+  "name": "fdm-brand-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build-time only. Rasterises brand/logo/*.svg into the PNG and .ico sets that Windows, Tauri, and Chrome require. Not part of the shipped product.",
+  "scripts": {
+    "rasterize": "node rasterize-logo.mjs"
+  },
+  "dependencies": {
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.34.1"
+  }
+}

@@ -1,0 +1,308 @@
+/* ==========================================================================
+   FDM — toolbar popup
+   Layers on styles/tokens.css. Desktop-dense (density 7/10): this is a status
+   readout glanced at for two seconds, not a page to read.
+   ========================================================================== */
+
+html,
+body {
+  /* Chrome sizes a popup to its content. Fixed width, bounded height, and the
+     list is the only thing that scrolls. */
+  width: 340px;
+  height: auto;
+  max-height: 560px;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------ bars */
+
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fdm-space-3);
+  padding: var(--fdm-space-3) var(--fdm-space-4);
+  border-bottom: var(--fdm-border-width) solid var(--fdm-border);
+  background: var(--fdm-surface);
+  flex: 0 0 auto;
+}
+
+.bar--footer {
+  border-bottom: none;
+  border-top: var(--fdm-border-width) solid var(--fdm-border);
+  justify-content: space-between;
+}
+
+.bar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+}
+
+.bar__name {
+  font-weight: var(--fdm-weight-black);
+  letter-spacing: var(--fdm-tracking-tight);
+  font-size: var(--fdm-text-body-lg);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdm-space-1);
+  /* 24px pointer target minimum for a text-sized control. */
+  min-height: 24px;
+  padding: 0 var(--fdm-space-1);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: var(--fdm-radius-sm);
+  transition: color var(--fdm-duration-fast) var(--fdm-ease-out);
+}
+
+.link:hover {
+  color: var(--fdm-fg);
+}
+
+/* ---------------------------------------------------------------- switch */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  cursor: pointer;
+  /* The whole label is the target, so the 20px track never has to be hit. */
+  min-height: 28px;
+}
+
+.switch__label {
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+}
+
+.switch input {
+  /* Kept in the layout and the a11y tree; only the paint is replaced. */
+  position: absolute;
+  opacity: 0;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switch__track {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 20px;
+  flex: 0 0 auto;
+  border-radius: var(--fdm-radius-full);
+  background: var(--fdm-surface-2);
+  border: var(--fdm-border-width) solid var(--fdm-border);
+  transition:
+    background-color var(--fdm-duration-base) var(--fdm-ease-out),
+    border-color var(--fdm-duration-base) var(--fdm-ease-out);
+}
+
+.switch__knob {
+  position: absolute;
+  inset: 2px auto 2px 2px;
+  width: 14px;
+  border-radius: var(--fdm-radius-full);
+  background: var(--fdm-fg-muted);
+  /* transform, not `left`: no layout work on a toggle. */
+  transition:
+    transform var(--fdm-duration-base) var(--fdm-ease-out),
+    background-color var(--fdm-duration-base) var(--fdm-ease-out);
+}
+
+.switch input:checked ~ .switch__track {
+  background: var(--fdm-red);
+  border-color: var(--fdm-red);
+}
+
+.switch input:checked ~ .switch__track .switch__knob {
+  transform: translateX(14px);
+  background: var(--fdm-on-red);
+}
+
+.switch input:focus-visible ~ .switch__track {
+  outline: var(--fdm-focus-width) solid var(--fdm-focus);
+  outline-offset: var(--fdm-focus-offset);
+}
+
+/* ---------------------------------------------------------------- banner */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  padding: var(--fdm-space-3) var(--fdm-space-4);
+  background: var(--fdm-red-12);
+  border-bottom: var(--fdm-border-width) solid
+    color-mix(in srgb, var(--fdm-danger) 45%, transparent);
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg);
+  flex: 0 0 auto;
+}
+
+.banner svg {
+  color: var(--fdm-danger);
+  flex: 0 0 auto;
+}
+
+.banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.banner a {
+  margin-left: auto;
+  white-space: nowrap;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ------------------------------------------------------------------ list */
+
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list:empty {
+  display: none;
+}
+
+.row {
+  padding: var(--fdm-space-3) var(--fdm-space-4);
+  border-bottom: var(--fdm-border-width) solid var(--fdm-border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row__head {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  margin-bottom: var(--fdm-space-2);
+}
+
+.row__name {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--fdm-text-label);
+  font-weight: var(--fdm-weight-medium);
+  /* One line, ellipsised, with the full name on hover and in the a11y tree via
+     the title attribute set in popup.js. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row__cancel {
+  flex: 0 0 auto;
+  /* 24×24 pointer target; the glyph inside is 15px. */
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--fdm-radius-sm);
+  background: none;
+  color: var(--fdm-fg-subtle);
+  cursor: pointer;
+  transition:
+    color var(--fdm-duration-fast) var(--fdm-ease-out),
+    background-color var(--fdm-duration-fast) var(--fdm-ease-out);
+}
+
+.row__cancel:hover {
+  color: var(--fdm-fg);
+  background: var(--fdm-surface-2);
+}
+
+.row__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--fdm-space-3);
+  margin-top: var(--fdm-space-2);
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+}
+
+.row__spacer {
+  flex: 1 1 auto;
+}
+
+.row__speed {
+  color: var(--fdm-fg);
+}
+
+.row__detail {
+  margin: var(--fdm-space-2) 0 0;
+  font-size: var(--fdm-text-caption);
+  color: var(--fdm-fg-muted);
+  overflow-wrap: anywhere;
+}
+
+/* State is carried by the progress bar's colour AND by a word in .row__meta or
+   .row__detail — never colour alone. */
+.row[data-state='failed'] .row__detail {
+  color: var(--fdm-danger);
+}
+
+.row[data-state='completed'] .row__detail {
+  color: var(--fdm-success);
+}
+
+/* ----------------------------------------------------------------- empty */
+
+.empty {
+  padding: var(--fdm-space-10) var(--fdm-space-6);
+  text-align: center;
+  color: var(--fdm-fg-muted);
+}
+
+.empty svg {
+  color: var(--fdm-fg-subtle);
+}
+
+.empty__title {
+  margin: var(--fdm-space-3) 0 var(--fdm-space-1);
+  font-size: var(--fdm-text-body-lg);
+  font-weight: var(--fdm-weight-semibold);
+  color: var(--fdm-fg);
+}
+
+.empty__hint {
+  margin: 0;
+  font-size: var(--fdm-text-caption);
+  text-wrap: balance;
+}
