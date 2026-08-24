@@ -539,6 +539,14 @@ function decodeURIComponentSafe(s) {
 
 // -------------------------------------------------------- popup / page comms
 
+function safePost(p, msg) {
+  try {
+    p.postMessage(msg);
+  } catch {
+    listeners.delete(p);
+  }
+}
+
 chrome.runtime.onConnect.addListener((p) => {
   if (p.name !== 'fdm-ui') return;
 
@@ -546,19 +554,19 @@ chrome.runtime.onConnect.addListener((p) => {
   p.onDisconnect.addListener(() => listeners.delete(p));
   p.onMessage.addListener((msg) => onUiMessage(msg, p));
 
-  p.postMessage(snapshot());
+  safePost(p, snapshot());
 });
 
 async function onUiMessage(msg, p) {
   switch (msg?.type) {
     case 'refresh':
       await pingHost();
-      p.postMessage(snapshot());
+      safePost(p, snapshot());
       break;
 
     case 'setEnabled':
       capturePolicy = await setSettings({ enabled: !!msg.enabled });
-      p.postMessage(snapshot());
+      safePost(p, snapshot());
       break;
 
     case 'cancel':

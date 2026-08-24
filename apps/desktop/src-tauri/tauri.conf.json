@@ -4,9 +4,6 @@
   "version": "0.1.0",
   "identifier": "com.fdm.app",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devUrl": "http://localhost:1420",
     "frontendDist": "../"
   },
   "app": {
