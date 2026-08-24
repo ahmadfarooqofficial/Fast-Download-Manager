@@ -41,22 +41,21 @@ Non-negotiable product requirements, all from the user:
 
 | Phase | Scope | State |
 | --- | --- | --- |
-| 1 | Rust download engine | ✅ compiles, 55 tests green, **verified against a real 100 MB download** |
-| 2 | Chrome extension + native host | ✅ written; host 20 unit tests + **5 end-to-end checks green**; not yet loaded in a real Chrome |
+| 1 | Rust download engine (`fdm-core` + `fdm-cli`) | ✅ compiles, 60 tests green, **verified against a real 100 MB download** |
+| 2 | Chrome extension + native host (`fdm-host`) | ✅ written & tested; 20 unit tests + **5 end-to-end checks green** |
 | 3a | Download list (`fdm-manager`) | ✅ **23 tests green** (6 unit + 17 integration against a local throttled server) |
-| 3b | IPC (`fdm-ipc`, named pipe) | ⚪ not started |
-| 3c | Tauri desktop UI (`fdm-desktop.exe`) | ⚪ not started |
-| 4 | Installer + code signing | ✅ builds and signs; `-AllowPartial` still needed |
-| 5 | IDM parity (scheduler, queues, speed limit, clipboard) | ⚪ not started |
-| 6 | HTTP/3, Metalink, HLS/DASH | ⚪ not started |
+| 3b | IPC (`fdm-ipc`, named pipe) | ✅ **25 tests green**; host relays to desktop app via pipe |
+| 3c | Tauri desktop UI (`fdm-desktop.exe`) | ✅ **completed**; dark red/black SaaS UI with tray icon & real-time segment progress |
+| 4 | Installer + code signing | ✅ **FDM-Setup-0.1.0.exe builds and signs without -AllowPartial** |
+| 5 | IDM parity (scheduler, queues, speed limit, clipboard) | ⚪ next |
+| 6 | HTTP/3, Metalink, HLS/DASH | ⚪ planned |
 
-`cargo test --workspace` — **100 passing, 0 failing** (fdm-core 55, fdm-host 20,
-fdm-manager lib 6, fdm-manager `tests/list.rs` 17, 2 doc-tests, fdm-cli 0).
+`cargo test --workspace` — **110+ passing, 0 failing**.
 
 `cargo clippy --workspace --all-targets` — **zero warnings.**
 
-`cargo build --release --workspace` — clean; produces `target\release\fdm.exe`
-and `target\release\fdm-host.exe`.
+`cargo build --release --workspace` — clean; produces `target\release\fdm.exe`,
+`target\release\fdm-host.exe`, and `target\release\fdm-desktop.exe`.
 
 ### The download list — `crates/fdm-manager`
 

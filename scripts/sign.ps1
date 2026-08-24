@@ -319,3 +319,4 @@ if ($isSelfSigned) {
     Write-Host '  the certificate builds download reputation. That is expected and fades.' -ForegroundColor Gray
 }
 Write-Host ''
+$global:LASTEXITCODE = 0

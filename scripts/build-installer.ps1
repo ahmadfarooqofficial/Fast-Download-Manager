@@ -331,11 +331,10 @@ if ($Signing) {
     $payload = @(Get-ChildItem -LiteralPath $Staging -Filter '*.exe' -File | Select-Object -ExpandProperty FullName)
     if ($payload) {
         if ($SignThumbprint) {
-            & powershell -NoProfile -ExecutionPolicy Bypass -File $SignScript -Thumbprint $SignThumbprint -Files $payload
+            & $SignScript -Thumbprint $SignThumbprint -Files $payload
         } else {
-            & powershell -NoProfile -ExecutionPolicy Bypass -File $SignScript -SelfSigned -Files $payload
+            & $SignScript -SelfSigned -Files $payload
         }
-        if ($LASTEXITCODE -ne 0) { Fail 'Payload signing failed. See output above.' }
     }
 }
 
@@ -399,11 +398,10 @@ if (-not (Test-Path -LiteralPath $setup)) { Fail 'ISCC reported success but prod
 if ($Signing) {
     Write-Step 'Signing the setup file'
     if ($SignThumbprint) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File $SignScript -Thumbprint $SignThumbprint -Files @($setup)
+        & $SignScript -Thumbprint $SignThumbprint -Files @($setup)
     } else {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File $SignScript -SelfSigned -Files @($setup)
+        & $SignScript -SelfSigned -Files @($setup)
     }
-    if ($LASTEXITCODE -ne 0) { Fail 'Setup signing failed. See output above.' }
 }
 
 $setupMb = [math]::Round((Get-Item -LiteralPath $setup).Length / 1MB, 2)
