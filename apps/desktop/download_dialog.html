@@ -16,7 +16,7 @@
         <path d="M12 6V16M12 16L8 12M12 16L16 12" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span class="brand-name">FDM</span>
-      <span class="brand-subtitle">Download Status</span>
+      <span class="brand-subtitle" id="dialog-title-text">Download Status</span>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="dialog-minimize" title="Minimize" aria-label="Minimize">
@@ -30,75 +30,118 @@
 
   <!-- IDM Style Dialog Content -->
   <main class="dialog-content">
-    <!-- File Header Card -->
-    <div class="dialog-file-card">
-      <div class="dialog-file-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-          <polyline points="13 2 13 9 20 9"></polyline>
+    
+    <!-- 1. ACTIVE / DOWNLOADING VIEW -->
+    <div id="view-active" class="dialog-view">
+      <!-- File Header Card -->
+      <div class="dialog-file-card">
+        <div class="dialog-file-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+        </div>
+        <div class="dialog-file-info">
+          <div class="dialog-filename" id="dlg-filename">Connecting…</div>
+          <div class="dialog-url" id="dlg-url">—</div>
+        </div>
+      </div>
+
+      <!-- High-Visibility Live Progress Bar -->
+      <div class="dialog-progress-container">
+        <div class="dialog-progress-track">
+          <div class="dialog-progress-fill" id="dlg-progress-fill"></div>
+        </div>
+        <div class="dialog-progress-meta">
+          <span class="dialog-progress-pct" id="dlg-progress-pct">0.0%</span>
+          <span class="dialog-progress-segs" id="dlg-progress-segs">32 connections</span>
+        </div>
+      </div>
+
+      <!-- Status & Metrics Grid -->
+      <div class="dialog-grid">
+        <div class="dlg-cell">
+          <span class="dlg-label">Status:</span>
+          <span class="dlg-val" id="dlg-status">Connecting…</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label">File size:</span>
+          <span class="dlg-val" id="dlg-size">—</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label">Transfer rate:</span>
+          <span class="dlg-val highlight-speed" id="dlg-speed">0 B/s</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label">Time left:</span>
+          <span class="dlg-val" id="dlg-eta">—</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label">Resume capability:</span>
+          <span class="dlg-val" id="dlg-resume">Yes</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label">Save to:</span>
+          <span class="dlg-val dlg-path" id="dlg-path">—</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons During Download -->
+      <footer class="dialog-actions">
+        <div class="dialog-actions-left">
+          <button class="btn btn-secondary" id="dlg-btn-manager" title="Open Full Fast Download Manager Window">
+            Open Manager
+          </button>
+        </div>
+        <div class="dialog-actions-right">
+          <button class="btn btn-secondary" id="dlg-btn-folder" title="Open containing folder">
+            Open Folder
+          </button>
+          <button class="btn btn-secondary" id="dlg-btn-pause">
+            Pause
+          </button>
+          <button class="btn btn-danger" id="dlg-btn-cancel">
+            Cancel
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 2. CELEBRATION / COMPLETED VIEW -->
+    <div id="view-completed" class="dialog-view celebrate-view" style="display: none;">
+      <div class="celebrate-badge">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
       </div>
-      <div class="dialog-file-info">
-        <div class="dialog-filename" id="dlg-filename">Connecting…</div>
-        <div class="dialog-url" id="dlg-url">—</div>
+      <h2 class="celebrate-title">🎉 Hurray! Your download is complete!</h2>
+      <div class="celebrate-filename" id="celebrate-filename">—</div>
+      
+      <div class="celebrate-card">
+        <div class="celebrate-row">
+          <span class="celebrate-label">Saved to:</span>
+          <span class="celebrate-value" id="celebrate-path">—</span>
+        </div>
+        <div class="celebrate-row">
+          <span class="celebrate-label">Total Size:</span>
+          <span class="celebrate-value highlight-size" id="celebrate-size">—</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Live Progress Bar -->
-    <div class="dialog-progress-wrapper">
-      <div class="fdm-progress" id="dlg-progress-bar" data-state="running" style="--fdm-value: 0; --fdm-segments: 8;"></div>
-    </div>
-
-    <!-- Status & Metrics Grid -->
-    <div class="dialog-grid">
-      <div class="dlg-cell">
-        <span class="dlg-label">Status:</span>
-        <span class="dlg-val" id="dlg-status">Connecting…</span>
-      </div>
-      <div class="dlg-cell">
-        <span class="dlg-label">File size:</span>
-        <span class="dlg-val" id="dlg-size">—</span>
-      </div>
-      <div class="dlg-cell">
-        <span class="dlg-label">Transfer rate:</span>
-        <span class="dlg-val highlight-speed" id="dlg-speed">0 B/s</span>
-      </div>
-      <div class="dlg-cell">
-        <span class="dlg-label">Time left:</span>
-        <span class="dlg-val" id="dlg-eta">—</span>
-      </div>
-      <div class="dlg-cell">
-        <span class="dlg-label">Resume capability:</span>
-        <span class="dlg-val" id="dlg-resume">Yes</span>
-      </div>
-      <div class="dlg-cell">
-        <span class="dlg-label">Save to:</span>
-        <span class="dlg-val dlg-path" id="dlg-path">—</span>
-      </div>
-    </div>
-
-    <!-- Action Buttons -->
-    <footer class="dialog-actions">
-      <div class="dialog-actions-left">
-        <button class="btn btn-secondary" id="dlg-btn-manager" title="Open Full Fast Download Manager Window">
-          Open Manager
-        </button>
-      </div>
-      <div class="dialog-actions-right">
-        <button class="btn btn-secondary" id="dlg-btn-folder" title="Open containing folder" disabled>
-          Open Folder
-        </button>
-        <button class="btn btn-secondary" id="dlg-btn-open" title="Open downloaded file" style="display: none;">
+      <footer class="dialog-actions celebrate-actions">
+        <button class="btn btn-primary btn-celebrate-open" id="celebrate-btn-open">
           Open File
         </button>
-        <button class="btn btn-secondary" id="dlg-btn-pause">
-          Pause
+        <button class="btn btn-secondary" id="celebrate-btn-close">
+          Close
         </button>
-        <button class="btn btn-danger" id="dlg-btn-cancel">
-          Cancel
+        <button class="btn btn-secondary" id="celebrate-btn-manager">
+          Open Manager
         </button>
-      </div>
-    </footer>
+      </footer>
+    </div>
+
   </main>
 
   <script src="download_dialog.js"></script>

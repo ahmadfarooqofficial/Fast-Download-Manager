@@ -38,9 +38,16 @@ function formatTime(seconds) {
 }
 
 const el = {
+  viewActive: document.getElementById('view-active'),
+  viewCompleted: document.getElementById('view-completed'),
+  titleText: document.getElementById('dialog-title-text'),
+
+  // Active view
   filename: document.getElementById('dlg-filename'),
   url: document.getElementById('dlg-url'),
-  bar: document.getElementById('dlg-progress-bar'),
+  progressFill: document.getElementById('dlg-progress-fill'),
+  progressPct: document.getElementById('dlg-progress-pct'),
+  progressSegs: document.getElementById('dlg-progress-segs'),
   status: document.getElementById('dlg-status'),
   size: document.getElementById('dlg-size'),
   speed: document.getElementById('dlg-speed'),
@@ -49,9 +56,18 @@ const el = {
   path: document.getElementById('dlg-path'),
   btnManager: document.getElementById('dlg-btn-manager'),
   btnFolder: document.getElementById('dlg-btn-folder'),
-  btnOpen: document.getElementById('dlg-btn-open'),
   btnPause: document.getElementById('dlg-btn-pause'),
   btnCancel: document.getElementById('dlg-btn-cancel'),
+
+  // Completed view
+  celebrateFilename: document.getElementById('celebrate-filename'),
+  celebratePath: document.getElementById('celebrate-path'),
+  celebrateSize: document.getElementById('celebrate-size'),
+  celebrateBtnOpen: document.getElementById('celebrate-btn-open'),
+  celebrateBtnClose: document.getElementById('celebrate-btn-close'),
+  celebrateBtnManager: document.getElementById('celebrate-btn-manager'),
+
+  // Header controls
   btnMin: document.getElementById('dialog-minimize'),
   btnClose: document.getElementById('dialog-close'),
 };
@@ -60,74 +76,85 @@ function render(d) {
   if (!d) return;
   currentDownload = d;
 
+  const total = d.total || 0;
+  const downloaded = d.downloaded || 0;
+  const pct = total > 0 ? (downloaded / total) * 100 : 0;
+  const pctFormatted = pct.toFixed(1);
+
+  // If completed, show celebration screen
+  if (d.status === 'completed') {
+    el.viewActive.style.display = 'none';
+    el.viewCompleted.style.display = 'flex';
+    el.titleText.textContent = 'Download Complete';
+
+    el.celebrateFilename.textContent = d.filename || 'Downloaded file';
+    el.celebrateFilename.title = d.filename || '';
+    el.celebratePath.textContent = d.path || 'Downloads folder';
+    el.celebratePath.title = d.path || '';
+    el.celebrateSize.textContent = formatBytes(downloaded || total);
+    return;
+  }
+
+  // Active / in-progress view
+  el.viewActive.style.display = 'flex';
+  el.viewCompleted.style.display = 'none';
+  el.titleText.textContent = 'Download Status';
+
   el.filename.textContent = d.filename || 'Starting download…';
   el.filename.title = d.filename || '';
   el.url.textContent = d.url || '—';
   el.url.title = d.url || '';
 
-  const total = d.total || 0;
-  const downloaded = d.downloaded || 0;
-  const pct = total > 0 ? (downloaded / total) * 100 : 0;
+  // Progress bar fill & labels
+  el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  el.progressPct.textContent = `${pctFormatted}%`;
+  const conns = d.active_connections || d.activeConnections || d.segments || 32;
+  el.progressSegs.textContent = `${conns} parallel streams`;
 
-  el.bar.style.setProperty('--fdm-value', pct.toFixed(1));
-  el.bar.style.setProperty('--fdm-segments', String(Math.max(1, d.segments || 8)));
-
-  if (d.status === 'completed') {
-    el.bar.dataset.state = 'completed';
-    el.status.textContent = 'Complete';
-    el.status.style.color = 'var(--fdm-green)';
-    el.speed.textContent = '—';
-    el.eta.textContent = '0s';
-    el.btnOpen.style.display = 'inline-flex';
-    el.btnPause.style.display = 'none';
-    el.btnCancel.textContent = 'Close';
-  } else if (d.status === 'paused') {
-    el.bar.dataset.state = 'paused';
+  if (d.status === 'paused') {
+    el.progressFill.style.background = 'var(--fdm-orange)';
     el.status.textContent = 'Paused';
     el.status.style.color = 'var(--fdm-orange)';
     el.speed.textContent = '0 B/s';
     el.btnPause.textContent = 'Resume';
-    el.btnPause.style.display = 'inline-flex';
+    el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'failed') {
-    el.bar.dataset.state = 'failed';
+    el.progressFill.style.background = 'var(--fdm-red)';
     el.status.textContent = d.error ? `Failed: ${d.error}` : 'Failed';
     el.status.style.color = 'var(--fdm-red)';
     el.speed.textContent = '0 B/s';
     el.btnPause.textContent = 'Retry';
-    el.btnPause.style.display = 'inline-flex';
+    el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'connecting' || d.status === 'queued') {
-    el.bar.dataset.state = 'running';
-    el.status.textContent = 'Connecting…';
-    el.status.style.color = 'var(--fdm-fg-muted)';
+    el.progressFill.style.background = 'var(--fdm-blue)';
+    el.status.textContent = 'Connecting to server…';
+    el.status.style.color = 'var(--fdm-blue)';
     el.btnPause.textContent = 'Pause';
-    el.btnPause.style.display = 'inline-flex';
+    el.btnPause.className = 'btn btn-secondary';
   } else {
     // downloading
-    el.bar.dataset.state = 'running';
-    const conns = d.activeConnections || d.segments || 8;
+    el.progressFill.style.background = 'linear-gradient(90deg, #e50914 0%, #ff4b2b 50%, #2ecc71 100%)';
     el.status.textContent = `Downloading (${conns} connections)`;
     el.status.style.color = 'var(--fdm-blue)';
-    el.speed.textContent = formatSpeed(d.speedBps);
-    el.eta.textContent = formatTime(d.etaSecs);
+    el.speed.textContent = formatSpeed(d.speed_bps || d.speedBps);
+    el.eta.textContent = formatTime(d.eta_secs || d.etaSecs);
     el.btnPause.textContent = 'Pause';
-    el.btnPause.style.display = 'inline-flex';
+    el.btnPause.className = 'btn btn-secondary';
   }
 
   // Size details
   if (total > 0) {
-    el.size.textContent = `${formatBytes(downloaded)} / ${formatBytes(total)} (${pct.toFixed(1)}%)`;
+    el.size.textContent = `${formatBytes(downloaded)} / ${formatBytes(total)} (${pctFormatted}%)`;
   } else {
-    el.size.textContent = `${formatBytes(downloaded)} (unknown total)`;
+    el.size.textContent = `${formatBytes(downloaded)} (calculating total...)`;
   }
 
   // Destination path
   if (d.path) {
     el.path.textContent = d.path;
     el.path.title = d.path;
-    el.btnFolder.disabled = false;
   } else {
-    el.path.textContent = 'Default Downloads folder';
-    el.btnFolder.disabled = true;
+    el.path.textContent = 'Downloads folder';
   }
 
   el.resume.textContent = d.resumable !== false ? 'Yes' : 'No';
@@ -141,12 +168,15 @@ el.btnClose?.addEventListener('click', () => {
   invoke('close_window').catch(console.error);
 });
 
-// Action buttons
+// Active Action buttons
 el.btnPause?.addEventListener('click', async () => {
   if (!currentDownload) return;
-  if (currentDownload.status === 'paused' || currentDownload.status === 'failed') {
+  const st = (currentDownload.status || '').toLowerCase();
+  if (st === 'paused' || st === 'failed') {
+    el.btnPause.textContent = 'Starting...';
     await invoke('resume_download', { id: downloadId });
   } else {
+    el.btnPause.textContent = 'Pausing...';
     await invoke('pause_download', { id: downloadId });
   }
 });
@@ -164,17 +194,26 @@ el.btnFolder?.addEventListener('click', async () => {
   }
 });
 
-el.btnOpen?.addEventListener('click', async () => {
+el.btnManager?.addEventListener('click', async () => {
+  await invoke('show_main_window');
+});
+
+// Completed / Celebration Action buttons
+el.celebrateBtnOpen?.addEventListener('click', async () => {
   if (currentDownload?.path) {
     await invoke('open_file', { path: currentDownload.path });
   }
 });
 
-el.btnManager?.addEventListener('click', async () => {
+el.celebrateBtnClose?.addEventListener('click', () => {
+  invoke('close_window').catch(console.error);
+});
+
+el.celebrateBtnManager?.addEventListener('click', async () => {
   await invoke('show_main_window');
 });
 
-// Initialization
+// Initialization & Live Sync
 async function init() {
   async function refresh() {
     if (!isNaN(downloadId)) {
@@ -190,7 +229,7 @@ async function init() {
   await refresh();
   const pollInterval = setInterval(refresh, 200);
 
-  // Real-time updates
+  // Real-time events
   await listen('download-event', (event) => {
     const payload = event.payload;
     if (!payload) return;
