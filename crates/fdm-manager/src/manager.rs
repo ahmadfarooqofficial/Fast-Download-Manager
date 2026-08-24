@@ -943,9 +943,24 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
 
     let deno = find_tool("deno.exe");
 
+    let mut format_arg = "bestvideo[ext=mp4]/bestvideo/best".to_string();
+    if let Some(ref name) = filename {
+        for res in [2160, 1440, 1080, 720, 480, 360, 240, 144] {
+            if name.contains(&format!("{}p", res)) || name.contains(&format!("{}P", res)) {
+                format_arg = format!(
+                    "bestvideo[height<={}][ext=mp4]/bestvideo[height<={}]/best[height<={}]/bestvideo[ext=mp4]/bestvideo/best",
+                    res, res, res
+                );
+                break;
+            }
+        }
+    }
+
     let mut args = Vec::new();
     args.push("--no-playlist".to_string());
     args.push("--no-warnings".to_string());
+    args.push("--extractor-args".to_string());
+    args.push("youtube:skip=hls".to_string());
     if let Some(deno_path) = deno {
         args.push("--js-runtimes".to_string());
         args.push(format!("deno:{}", deno_path.display()));
@@ -955,7 +970,7 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
     args.push("-o".to_string());
     args.push("%(title)s.%(ext)s".to_string());
     args.push("-f".to_string());
-    args.push("b/best".to_string());
+    args.push(format_arg);
     args.push(url.to_string());
 
     let filename_owned = filename.clone();
