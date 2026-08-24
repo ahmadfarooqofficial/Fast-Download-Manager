@@ -99,7 +99,24 @@ async fn main() {
                 }
             });
 
+            // Show main window if launched directly by user (not --background / --silent)
+            let is_background = std::env::args().any(|arg| arg == "--background" || arg == "--silent" || arg == "-b");
+            if !is_background {
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             add_download,

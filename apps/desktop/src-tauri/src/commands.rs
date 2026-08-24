@@ -144,7 +144,11 @@ pub fn toggle_maximize_window(window: tauri::WebviewWindow) -> Result<(), String
 
 #[tauri::command]
 pub fn close_window(window: tauri::WebviewWindow) -> Result<(), String> {
-    window.close().map_err(|e| e.to_string())
+    if window.label() == "main" {
+        window.hide().map_err(|e| e.to_string())
+    } else {
+        window.close().map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]

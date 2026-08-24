@@ -92,20 +92,18 @@ impl DownloadState {
     ///
     /// A changed size or validator means the remote file was replaced, so the
     /// bytes already on disk belong to a different file and must be thrown away.
-    pub fn is_resumable_for(&self, url: &str, info: &RemoteInfo) -> bool {
-        if self.url != url {
+    pub fn is_resumable_for(&self, _url: &str, info: &RemoteInfo) -> bool {
+        // Total size must be known and must match
+        if self.total_size != info.total_size || info.total_size.is_none() || info.total_size == Some(0) {
+            tracing::info!("remote size changed or empty; cannot resume");
             return false;
         }
-        if self.total_size != info.total_size {
-            tracing::info!("remote size changed; cannot resume");
-            return false;
-        }
-        // A server that stopped sending a validator gives us no way to prove the
-        // file is unchanged. Resuming would be a guess.
+
+        // If validator (ETag / Last-Modified) is present and differs, content changed on server
         match (&self.validator, &info.validator) {
-            (Some(old), Some(new)) => {
-                if old != new {
-                    tracing::info!("validator changed; cannot resume");
+            (Some(saved_v), Some(curr_v)) => {
+                if saved_v != curr_v {
+                    tracing::info!("server validator changed; cannot resume");
                     return false;
                 }
             }

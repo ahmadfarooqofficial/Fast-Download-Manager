@@ -38,7 +38,7 @@
 ; browser-registration block below is compiled out rather than writing a junk
 ; registry key that would make Chrome log an error on every launch.
 #ifndef ChromeExtensionId
-  #define ChromeExtensionId "UNPUBLISHED"
+  #define ChromeExtensionId "enipidhffjdkkkmmohnnehfdigdnmfeo"
 #endif
 #define ExtensionPublished (ChromeExtensionId != "UNPUBLISHED")
 
@@ -155,36 +155,31 @@ Name: "{autodesktop}\{#AppShortName}"; Filename: "{app}\{#AppExeName}"; Tasks: d
 Root: HKLM; Subkey: "Software\FDM"; ValueType: string; ValueName: "InstallDir"; ValueData: "{app}"; Flags: uninsdeletekeyifempty
 Root: HKLM; Subkey: "Software\FDM"; ValueType: string; ValueName: "Version"; ValueData: "{#AppVersion}"; Flags: uninsdeletekey
 
-; ------------------------------------------------- native messaging host, HKLM
+; ------------------------------------------------- native messaging host, HKLM & HKCU
 ; One key per Chromium family. They do not share a namespace, so a user on Brave
 ; gets nothing from the Chrome key. All point at the same generated manifest.
-; Written to both registry views: a 32-bit browser on 64-bit Windows reads the
-; WOW6432Node view and would not see a 64-bit-only key.
 Root: HKLM32; Subkey: "Software\Google\Chrome\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 Root: HKLM64; Subkey: "Software\Google\Chrome\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+Root: HKCU; Subkey: "Software\Google\Chrome\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+
 Root: HKLM32; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 Root: HKLM64; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+Root: HKCU; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+
 Root: HKLM64; Subkey: "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+Root: HKCU; Subkey: "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
+
 Root: HKLM64; Subkey: "Software\Vivaldi\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 Root: HKLM64; Subkey: "Software\Chromium\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 
 ; ------------------------------------------------------- extension pre-install
-; This is the closest thing Windows allows to "install the extension for them".
-; It tells Chrome the extension exists and where to update from; Chrome then
-; shows the user a one-time enable prompt. Silent sideloading of a local .crx
-; has been blocked since Chrome 33 and there is no way around it -- the honest
-; framing is one click to install, one click to enable.
 #if ExtensionPublished
 Root: HKLM32; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "update_url"; ValueData: "https://clients2.google.com/service/update2/crx"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "update_url"; ValueData: "https://clients2.google.com/service/update2/crx"; Flags: uninsdeletekey
 #endif
 
 ; ------------------------------------------------------------------- run-at-login
-; HKCU under elevation resolves to the account that approved the UAC prompt. On
-; the normal case (the signed-in user is a local admin) that is the same account.
-; When it isn't, the app's own Settings toggle is the authoritative control, and
-; it writes this same value from a non-elevated process.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FDM"; ValueData: """{app}\{#AppExeName}"" --minimized"; Flags: uninsdeletevalue; Tasks: startup; Check: HasDesktopApp
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FDM"; ValueData: """{app}\{#AppExeName}"" --background"; Flags: uninsdeletevalue; Tasks: startup; Check: HasDesktopApp
 
 ; ------------------------------------------------------------------------- PATH
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addtopath; Check: NeedsAddPath(ExpandConstant('{app}'))

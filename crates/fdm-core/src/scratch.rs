@@ -34,8 +34,9 @@ const STEM_LIMIT: usize = 48;
 ///
 /// `dir` and `filename` are the *intended* destination, before de-duplication.
 pub fn part_path(temp_dir: &Path, url: &str, dir: &Path, filename: &str) -> PathBuf {
-    let mut key = String::with_capacity(url.len() + filename.len() + 8);
-    key.push_str(url);
+    let clean_url = url.split('?').next().unwrap_or(url);
+    let mut key = String::with_capacity(clean_url.len() + filename.len() + 8);
+    key.push_str(clean_url);
     key.push('\u{0}');
     key.push_str(&dir.to_string_lossy());
     key.push('\u{0}');

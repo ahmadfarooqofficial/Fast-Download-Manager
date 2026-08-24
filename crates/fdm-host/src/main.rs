@@ -479,7 +479,7 @@ async fn try_relay(cmd: &DownloadCommand, ctx: &Arc<Context>) -> RelayResult {
 
             for desktop_exe in candidates {
                 if desktop_exe.exists() {
-                    if let Ok(_child) = std::process::Command::new(&desktop_exe).spawn() {
+                    if let Ok(_child) = std::process::Command::new(&desktop_exe).arg("--background").spawn() {
                         for _ in 0..30 {
                             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                             if let Ok(c) = fdm_ipc::connect().await {
