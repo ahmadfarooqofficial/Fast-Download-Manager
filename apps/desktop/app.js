@@ -166,7 +166,7 @@ function render() {
     }
 
     return `
-      <div class="download-row" data-id="${d.id}">
+      <div class="download-row" data-id="${d.id}" ondblclick="window.fdm.openDialog(${d.id})" title="Double click to open download window">
         <div class="row-top">
           <div class="file-info">
             <div class="file-icon">
@@ -206,6 +206,7 @@ function render() {
 
 // ------------------------------------------------------------- Global Handlers
 window.fdm = {
+  openDialog: (id) => invoke('open_download_dialog_cmd', { id }).catch(console.error),
   pause: (id) => invoke('pause_download', { id }).catch(console.error),
   resume: (id) => invoke('resume_download', { id }).catch(console.error),
   cancel: (id) => invoke('cancel_download', { id }).catch(console.error),

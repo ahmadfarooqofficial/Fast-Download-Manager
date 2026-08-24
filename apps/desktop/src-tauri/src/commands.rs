@@ -146,3 +146,50 @@ pub fn toggle_maximize_window(window: tauri::WebviewWindow) -> Result<(), String
 pub fn close_window(window: tauri::WebviewWindow) -> Result<(), String> {
     window.close().map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn get_download(manager: State<'_, Arc<Manager>>, id: DownloadId) -> Option<DownloadEntry> {
+    manager.list().into_iter().find(|d| d.id == id)
+}
+
+#[tauri::command]
+pub fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager as _;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+
+pub fn open_download_dialog(app: &tauri::AppHandle, id: u64) {
+    use tauri::Manager as _;
+    let label = format!("download-dialog-{}", id);
+    if let Some(win) = app.get_webview_window(&label) {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+        return;
+    }
+
+    let url = tauri::WebviewUrl::App(format!("download_dialog.html?id={}", id).into());
+    if let Ok(win) = tauri::WebviewWindowBuilder::new(app, &label, url)
+        .title("FDM — Download Progress")
+        .inner_size(540.0, 380.0)
+        .resizable(false)
+        .center()
+        .always_on_top(true)
+        .decorations(false)
+        .build()
+    {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+}
+
+#[tauri::command]
+pub fn open_download_dialog_cmd(app: tauri::AppHandle, id: fdm_manager::DownloadId) -> Result<(), String> {
+    open_download_dialog(&app, id);
+    Ok(())
+}

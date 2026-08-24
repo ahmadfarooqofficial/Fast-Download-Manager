@@ -691,3 +691,149 @@ button {
   line-height: 1.6;
   color: var(--fdm-fg-muted);
 }
+
+/* --------------------------------------------------- IDM Style Popup Dialog */
+.dialog-body {
+  margin: 0;
+  padding: 0;
+  background: var(--fdm-bg);
+  color: var(--fdm-fg);
+  font-family: var(--fdm-font-sans);
+  font-size: var(--fdm-text-body);
+  user-select: none;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--fdm-border-strong);
+  border-radius: var(--fdm-radius-md);
+  box-sizing: border-box;
+}
+
+.dialog-titlebar {
+  height: 34px;
+  background: var(--fdm-surface-2);
+  border-bottom: 1px solid var(--fdm-border);
+}
+
+.dialog-content {
+  flex: 1;
+  padding: var(--fdm-space-3) var(--fdm-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fdm-space-3);
+  overflow: hidden;
+}
+
+.dialog-file-card {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-3);
+  background: var(--fdm-surface-1);
+  padding: var(--fdm-space-2) var(--fdm-space-3);
+  border-radius: var(--fdm-radius-sm);
+  border: 1px solid var(--fdm-border);
+}
+
+.dialog-file-icon {
+  color: var(--fdm-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dialog-file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dialog-filename {
+  font-weight: var(--fdm-weight-bold);
+  font-size: var(--fdm-text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dialog-url {
+  font-size: 11px;
+  color: var(--fdm-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dialog-progress-wrapper {
+  padding: 2px 0;
+}
+
+.dialog-progress-wrapper .fdm-progress {
+  height: 16px;
+  border-radius: 4px;
+}
+
+.dialog-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  background: var(--fdm-surface-1);
+  padding: var(--fdm-space-3);
+  border-radius: var(--fdm-radius-sm);
+  border: 1px solid var(--fdm-border);
+  font-size: var(--fdm-text-caption);
+}
+
+.dlg-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.dlg-label {
+  color: var(--fdm-fg-muted);
+  flex-shrink: 0;
+}
+
+.dlg-val {
+  font-weight: var(--fdm-weight-medium);
+  color: var(--fdm-fg);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.highlight-speed {
+  color: var(--fdm-green);
+  font-family: var(--fdm-font-mono);
+  font-weight: var(--fdm-weight-bold);
+}
+
+.dlg-path {
+  font-size: 11px;
+  direction: rtl;
+  text-align: left;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  margin-top: auto;
+  padding-top: var(--fdm-space-2);
+}
+
+.dialog-actions-left {
+  display: flex;
+  gap: var(--fdm-space-2);
+}
+
+.dialog-actions-right {
+  display: flex;
+  gap: var(--fdm-space-2);
+}
+
