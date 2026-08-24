@@ -51,7 +51,7 @@ impl Error {
     /// structural problems where retrying the same request cannot help.
     pub fn is_retryable(&self) -> bool {
         match self {
-            Error::Http(e) => e.is_timeout() || e.is_connect() || e.is_request() || e.is_body(),
+            Error::Http(e) => !e.is_builder(),
             Error::Io(e) => matches!(
                 e.kind(),
                 std::io::ErrorKind::TimedOut

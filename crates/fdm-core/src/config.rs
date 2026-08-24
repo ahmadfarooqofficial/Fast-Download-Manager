@@ -64,8 +64,8 @@ impl Default for EngineConfig {
         Self {
             max_connections: 32,
             min_split_size: 512 * 1024,
-            write_buffer: 64 * 1024,
-            max_retries: 5,
+            write_buffer: 128 * 1024,
+            max_retries: 10,
             connect_timeout: Duration::from_secs(8),
             read_timeout: Duration::from_secs(20),
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 FDM/0.1.0".into(),

@@ -50,6 +50,64 @@ function formatTime(seconds) {
   return `${s}s`;
 }
 
+function getFileIcon(filename, category) {
+  const name = (filename || '').toLowerCase();
+  const cat = (category || '').toLowerCase();
+
+  // Video (VLC/Media player style)
+  if (cat === 'video' || name.endsWith('.mp4') || name.endsWith('.mkv') || name.endsWith('.webm') || name.endsWith('.avi') || name.endsWith('.mov') || name.endsWith('.flv') || name.endsWith('.ts')) {
+    return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="4" width="20" height="16" rx="3" fill="#ff4d4d" fill-opacity="0.15" stroke="#ff4d4d" stroke-width="1.8"/>
+      <polygon points="10 8 16 12 10 16 10 8" fill="#ff4d4d"/>
+      <circle cx="5" cy="7" r="1" fill="#ff4d4d"/><circle cx="5" cy="17" r="1" fill="#ff4d4d"/>
+      <circle cx="19" cy="7" r="1" fill="#ff4d4d"/><circle cx="19" cy="17" r="1" fill="#ff4d4d"/>
+    </svg>`;
+  }
+
+  // Audio / Music (Headphones & music notes)
+  if (cat === 'music' || cat === 'audio' || name.endsWith('.mp3') || name.endsWith('.m4a') || name.endsWith('.wav') || name.endsWith('.flac') || name.endsWith('.aac') || name.endsWith('.ogg')) {
+    return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="3" width="20" height="18" rx="3" fill="#a855f7" fill-opacity="0.15" stroke="#a855f7" stroke-width="1.8"/>
+      <path d="M9 18V5l10-2v13" stroke="#a855f7" stroke-width="1.8" stroke-linecap="round"/>
+      <circle cx="6" cy="18" r="3" fill="#a855f7"/><circle cx="16" cy="16" r="3" fill="#a855f7"/>
+    </svg>`;
+  }
+
+  // Compressed / Archives (Zip folder with zipper)
+  if (cat === 'compressed' || name.endsWith('.zip') || name.endsWith('.rar') || name.endsWith('.7z') || name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.iso')) {
+    return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-width="1.8"/>
+      <line x1="12" y1="11" x2="12" y2="17" stroke="#f59e0b" stroke-width="2" stroke-dasharray="2 2"/>
+      <rect x="10.5" y="14" width="3" height="4" rx="1" fill="#f59e0b"/>
+    </svg>`;
+  }
+
+  // Programs / Executable (App gear & setup box)
+  if (cat === 'programs' || name.endsWith('.exe') || name.endsWith('.msi') || name.endsWith('.bat') || name.endsWith('.cmd') || name.endsWith('.dmg')) {
+    return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-width="1.8"/>
+      <path d="M9 9h6v6H9z" fill="#10b981"/>
+      <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  // Documents
+  if (cat === 'documents' || name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx') || name.endsWith('.xls') || name.endsWith('.xlsx') || name.endsWith('.ppt') || name.endsWith('.txt')) {
+    return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#3b82f6" fill-opacity="0.15" stroke="#3b82f6" stroke-width="1.8"/>
+      <polyline points="14 2 14 8 20 8" stroke="#3b82f6" stroke-width="1.8"/>
+      <line x1="8" y1="13" x2="16" y2="13" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/>
+      <line x1="8" y1="17" x2="13" y2="17" stroke="#3b82f6" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  // Default File Icon
+  return `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+    <polyline points="13 2 13 9 20 9"></polyline>
+  </svg>`;
+}
+
 const el = {
   viewPrompt: document.getElementById('view-prompt'),
   viewActive: document.getElementById('view-active'),
@@ -66,6 +124,7 @@ const el = {
   promptBtnCancel: document.getElementById('prompt-btn-cancel'),
 
   // Active view
+  fileIcon: document.getElementById('dlg-file-icon'),
   filename: document.getElementById('dlg-filename'),
   url: document.getElementById('dlg-url'),
   progressFill: document.getElementById('dlg-progress-fill'),
@@ -139,6 +198,10 @@ function render(d) {
   el.viewActive.style.display = 'flex';
   el.viewCompleted.style.display = 'none';
   el.titleText.textContent = 'Download Status';
+
+  if (el.fileIcon) {
+    el.fileIcon.innerHTML = getFileIcon(d.filename, d.category);
+  }
 
   el.filename.textContent = d.filename || 'Starting download…';
   el.filename.title = d.filename || '';

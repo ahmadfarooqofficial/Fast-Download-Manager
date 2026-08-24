@@ -718,19 +718,19 @@ button {
 
 .dialog-content {
   flex: 1;
-  padding: var(--fdm-space-3) var(--fdm-space-4);
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: var(--fdm-space-3);
+  gap: 8px;
   overflow: hidden;
 }
 
 .dialog-file-card {
   display: flex;
   align-items: center;
-  gap: var(--fdm-space-3);
+  gap: 10px;
   background: var(--fdm-surface-1);
-  padding: var(--fdm-space-2) var(--fdm-space-3);
+  padding: 6px 10px;
   border-radius: var(--fdm-radius-sm);
   border: 1px solid var(--fdm-border);
 }
@@ -750,14 +750,14 @@ button {
 
 .dialog-filename {
   font-weight: var(--fdm-weight-bold);
-  font-size: var(--fdm-text-body);
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dialog-url {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--fdm-fg-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -776,25 +776,26 @@ button {
 .dialog-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 16px;
+  gap: 4px 12px;
   background: var(--fdm-surface-1);
-  padding: var(--fdm-space-3);
+  padding: 6px 10px;
   border-radius: var(--fdm-radius-sm);
   border: 1px solid var(--fdm-border);
-  font-size: var(--fdm-text-caption);
+  font-size: 11px;
 }
 
 .dlg-cell {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   overflow: hidden;
 }
 
 .dlg-label {
   color: var(--fdm-fg-muted);
   flex-shrink: 0;
+  font-size: 10.5px;
 }
 
 .dlg-val {
@@ -813,7 +814,7 @@ button {
 }
 
 .dlg-path {
-  font-size: 11px;
+  font-size: 10.5px;
   direction: rtl;
   text-align: left;
 }
@@ -821,20 +822,21 @@ button {
 .dialog-view {
   display: flex;
   flex-direction: column;
-  gap: var(--fdm-space-3);
+  gap: 6px;
   height: 100%;
+  justify-content: space-between;
 }
 
 .dialog-progress-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 4px;
+  padding: 2px 0;
 }
 
 .dialog-progress-track {
   width: 100%;
-  height: 14px;
+  height: 12px;
   background: var(--fdm-surface-2);
   border: 1px solid var(--fdm-border-strong);
   border-radius: var(--fdm-radius-sm);
@@ -856,7 +858,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 .dialog-progress-pct {
@@ -874,43 +876,39 @@ button {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: var(--fdm-space-2) var(--fdm-space-4);
-  gap: var(--fdm-space-3);
+  padding: 4px 10px;
+  gap: 6px;
 }
 
 .celebrate-badge {
   background: rgba(46, 204, 113, 0.12);
   border: 1px solid rgba(46, 204, 113, 0.3);
   border-radius: 50%;
-  width: 64px;
-  height: 64px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto;
-  box-shadow: 0 0 20px rgba(46, 204, 113, 0.2);
+  box-shadow: 0 0 15px rgba(46, 204, 113, 0.2);
 }
 
 .celebrate-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: var(--fdm-weight-bold);
   color: var(--fdm-fg);
   letter-spacing: -0.02em;
 }
 
 .celebrate-filename {
-  font-family: var(--fdm-font-mono);
-  font-size: 13px;
-  color: var(--fdm-green);
-  background: var(--fdm-surface-1);
-  padding: 6px 14px;
-  border-radius: var(--fdm-radius-sm);
-  border: 1px solid var(--fdm-border);
+  font-size: 12px;
+  color: var(--fdm-fg);
+  font-weight: var(--fdm-weight-semibold);
   max-width: 90%;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .celebrate-card {
@@ -918,22 +916,23 @@ button {
   background: var(--fdm-surface-1);
   border: 1px solid var(--fdm-border);
   border-radius: var(--fdm-radius-sm);
-  padding: 10px 16px;
+  padding: 6px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
 }
 
 .celebrate-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .celebrate-label {
   color: var(--fdm-fg-muted);
+  flex-shrink: 0;
 }
 
 .celebrate-value {
@@ -956,8 +955,8 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding-top: 8px;
+  margin-top: 4px;
+  padding-top: 4px;
   flex-wrap: nowrap;
   width: 100%;
 }
@@ -975,8 +974,8 @@ button {
 }
 
 .dialog-actions .btn {
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 12px;
+  font-size: 11.5px;
   white-space: nowrap;
   min-width: fit-content;
 }
@@ -985,8 +984,8 @@ button {
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 12px;
-  margin-top: auto;
+  gap: 10px;
+  margin-top: 4px;
 }
 
 .btn-celebrate-open {
@@ -1005,28 +1004,29 @@ button {
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: var(--fdm-space-3);
+  gap: 6px;
+  justify-content: space-between;
 }
 
 .prompt-card {
   background: var(--fdm-surface-1);
   border: 1px solid var(--fdm-border);
   border-radius: var(--fdm-radius-sm);
-  padding: 14px 18px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .prompt-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .prompt-label {
-  width: 80px;
-  font-size: 12px;
+  width: 72px;
+  font-size: 11px;
   font-weight: var(--fdm-weight-semibold);
   color: var(--fdm-fg-muted);
   flex-shrink: 0;
@@ -1037,10 +1037,10 @@ button {
   background: var(--fdm-bg);
   border: 1px solid var(--fdm-border);
   border-radius: var(--fdm-radius-xs);
-  padding: 6px 10px;
+  padding: 4px 8px;
   color: var(--fdm-fg);
   font-family: var(--fdm-font-sans);
-  font-size: 12px;
+  font-size: 11.5px;
   outline: none;
   transition: border-color 0.15s ease;
 }
@@ -1056,8 +1056,8 @@ button {
   border: 1px solid rgba(229, 9, 20, 0.4);
   color: #ff4d4d;
   font-weight: var(--fdm-weight-semibold);
-  font-size: 11px;
-  padding: 2px 10px;
+  font-size: 10px;
+  padding: 1px 8px;
   border-radius: 4px;
   text-transform: uppercase;
 }
@@ -1075,12 +1075,9 @@ button {
   border: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .btn-start-download:hover {
   background: #27ae60 !important;
 }
-
-
-

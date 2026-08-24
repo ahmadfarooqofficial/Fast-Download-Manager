@@ -47,6 +47,8 @@ const DEFAULT_SETTINGS = {
   skipExtensions: [
     'html', 'htm', 'xhtml', 'php', 'asp', 'aspx', 'jsp', 'cgi',
     'css', 'js', 'mjs', 'json', 'xml', 'rss', 'atom', 'txt',
+    // Images are downloaded natively by the browser per user requirement
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'avif',
   ],
 };
 
