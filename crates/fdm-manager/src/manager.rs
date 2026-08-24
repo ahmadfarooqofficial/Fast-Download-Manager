@@ -925,27 +925,37 @@ fn is_video_platform(url: &str) -> bool {
 
 fn parse_speed_str(s: &str) -> f64 {
     let s = s.trim().to_uppercase();
-    if s.ends_with("KIB/S") || s.ends_with("KB/S") {
-        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0
-    } else if s.ends_with("MIB/S") || s.ends_with("MB/S") {
-        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0 * 1024.0
-    } else if s.ends_with("GIB/S") || s.ends_with("GB/S") {
-        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0 * 1024.0 * 1024.0
+    if s.contains("GIB/S") || s.contains("GB/S") {
+        let num_str = s.replace("GIB/S", "").replace("GB/S", "");
+        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0 * 1024.0
+    } else if s.contains("MIB/S") || s.contains("MB/S") {
+        let num_str = s.replace("MIB/S", "").replace("MB/S", "");
+        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0
+    } else if s.contains("KIB/S") || s.contains("KB/S") {
+        let num_str = s.replace("KIB/S", "").replace("KB/S", "");
+        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0
+    } else if s.contains("B/S") {
+        let num_str = s.replace("B/S", "");
+        num_str.trim().parse::<f64>().unwrap_or(0.0)
     } else {
-        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0)
+        0.0
     }
 }
 
 fn parse_eta_str(s: &str) -> Option<u64> {
-    let parts: Vec<&str> = s.trim().split(':').collect();
+    let s = s.trim();
+    if s == "UNKNOWN" || s == "NA" || s.is_empty() {
+        return None;
+    }
+    let parts: Vec<&str> = s.split(':').collect();
     if parts.len() == 2 {
-        let m: u64 = parts[0].parse().ok()?;
-        let s: u64 = parts[1].parse().ok()?;
+        let m: u64 = parts[0].trim().parse().ok()?;
+        let s: u64 = parts[1].trim().parse().ok()?;
         Some(m * 60 + s)
     } else if parts.len() == 3 {
-        let h: u64 = parts[0].parse().ok()?;
-        let m: u64 = parts[1].parse().ok()?;
-        let s: u64 = parts[2].parse().ok()?;
+        let h: u64 = parts[0].trim().parse().ok()?;
+        let m: u64 = parts[1].trim().parse().ok()?;
+        let s: u64 = parts[2].trim().parse().ok()?;
         Some(h * 3600 + m * 60 + s)
     } else {
         None
@@ -1018,7 +1028,7 @@ async fn download_video_platform(
         cmd.args(&[
             "--newline",
             "--progress-template",
-            "download:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
+            "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
             "--no-playlist",
             "--no-warnings",
             "-N",
@@ -1061,15 +1071,16 @@ async fn download_video_platform(
                 return Err(fdm_core::Error::Cancelled);
             }
 
-            if line.starts_with("download:") {
-                let parts: Vec<&str> = line.trim_start_matches("download:").split(':').collect();
+            if line.starts_with("FDM_PROG:") {
+                let raw = line.trim_start_matches("FDM_PROG:").trim();
+                let parts: Vec<&str> = raw.split(':').collect();
                 if parts.len() >= 4 {
-                    let downloaded: u64 = parts[0].parse().unwrap_or(0);
-                    let total: Option<u64> = parts[1].parse().ok();
+                    let downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
+                    let total: Option<u64> = parts[1].trim().parse().ok().filter(|&t| t > 0);
                     let speed_str = parts[2].trim();
                     let eta_str = parts[3].trim();
 
-                    if last_progress.elapsed() >= std::time::Duration::from_millis(100) {
+                    if last_progress.elapsed() >= std::time::Duration::from_millis(50) {
                         last_progress = std::time::Instant::now();
                         let mut guard = reg_c.lock().unwrap();
                         if guard.is_current(id, generation) {
