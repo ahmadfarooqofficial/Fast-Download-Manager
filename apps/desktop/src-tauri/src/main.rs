@@ -130,6 +130,7 @@ async fn main() {
             resume_all,
             clear_finished,
             get_config,
+            update_config,
             open_file,
             open_folder,
             minimize_window,

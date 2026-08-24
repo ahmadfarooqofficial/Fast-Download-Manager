@@ -275,21 +275,45 @@ document.querySelectorAll('.nav-item').forEach(btn => {
 
 // Settings Modal
 const settingsDialog = document.getElementById('settings-dialog');
+const cfgMaxActive = document.getElementById('cfg-max-active');
+const cfgMaxConn = document.getElementById('cfg-max-conn');
+
+async function applySettings() {
+  const maxActive = parseInt(cfgMaxActive.value, 10) || 4;
+  const maxConnections = parseInt(cfgMaxConn.value, 10) || 32;
+  localStorage.setItem('fdm_max_active', String(maxActive));
+  localStorage.setItem('fdm_max_connections', String(maxConnections));
+  try {
+    await invoke('update_config', { maxActive, maxConnections });
+  } catch (err) {
+    console.error('Failed to update config:', err);
+  }
+}
+
 document.getElementById('btn-open-settings').addEventListener('click', async () => {
   try {
     const cfg = await invoke('get_config');
     document.getElementById('cfg-download-root').textContent = cfg.downloadRoot || '—';
     document.getElementById('cfg-temp-dir').textContent = cfg.tempDir || '—';
-    document.getElementById('cfg-max-active').textContent = cfg.maxActive || '4';
-    document.getElementById('cfg-max-conn').textContent = cfg.maxConnections || '16';
+    if (cfg.maxActive) cfgMaxActive.value = String(cfg.maxActive);
+    if (cfg.maxConnections) cfgMaxConn.value = String(cfg.maxConnections);
   } catch (err) {
     console.error('Failed to load settings:', err);
   }
   settingsDialog.showModal();
 });
 
-document.getElementById('btn-settings-close').addEventListener('click', () => settingsDialog.close());
-document.getElementById('btn-settings-ok').addEventListener('click', () => settingsDialog.close());
+cfgMaxActive?.addEventListener('change', applySettings);
+cfgMaxConn?.addEventListener('change', applySettings);
+
+document.getElementById('btn-settings-close').addEventListener('click', () => {
+  applySettings();
+  settingsDialog.close();
+});
+document.getElementById('btn-settings-ok').addEventListener('click', () => {
+  applySettings();
+  settingsDialog.close();
+});
 
 // Window controls
 document.getElementById('titlebar-minimize')?.addEventListener('click', () => {
@@ -304,6 +328,16 @@ document.getElementById('titlebar-close')?.addEventListener('click', () => {
 
 // ------------------------------------------------------------- Initialization
 async function init() {
+  // Restore saved performance settings
+  const savedConns = parseInt(localStorage.getItem('fdm_max_connections'), 10);
+  const savedActive = parseInt(localStorage.getItem('fdm_max_active'), 10);
+  if (savedConns || savedActive) {
+    invoke('update_config', {
+      maxConnections: savedConns || undefined,
+      maxActive: savedActive || undefined,
+    }).catch(console.error);
+  }
+
   async function refresh() {
     try {
       downloads = await invoke('list_downloads');

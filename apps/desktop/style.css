@@ -685,6 +685,31 @@ button {
   text-align: center;
 }
 
+.setting-select {
+  font-family: var(--fdm-font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--fdm-fg);
+  background: var(--fdm-surface-2);
+  padding: 6px 10px;
+  border-radius: var(--fdm-radius-sm);
+  border: 1px solid var(--fdm-border);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.setting-select:hover,
+.setting-select:focus {
+  border-color: var(--fdm-red);
+  box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.2);
+}
+
+.setting-select option {
+  background: var(--fdm-surface-1);
+  color: var(--fdm-fg);
+}
+
 .about-text {
   margin: 0;
   font-size: var(--fdm-text-caption);

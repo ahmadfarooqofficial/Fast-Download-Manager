@@ -215,8 +215,17 @@ impl Manager {
         ))
     }
 
-    pub fn engine_config(&self) -> &EngineConfig {
+    pub fn engine_config(&self) -> EngineConfig {
         self.engine.config()
+    }
+
+    pub fn set_max_connections(&self, conns: u32) {
+        self.engine.set_max_connections(conns);
+    }
+
+    pub fn set_max_active(&self, max_active: usize) {
+        let max_active = max_active.clamp(1, 32);
+        self.max_active.store(max_active, Ordering::Relaxed);
     }
 
     pub fn max_active(&self) -> usize {
@@ -596,6 +605,7 @@ impl Manager {
                 (req, rt.cancel.clone())
             };
 
+            let max_conns = engine.config().max_connections;
             let result = if is_video_platform(url.as_str()) && find_tool("yt-dlp.exe").is_some() {
                 download_video_platform(
                     id,
@@ -603,6 +613,7 @@ impl Manager {
                     url.as_str(),
                     filename.clone(),
                     target_dir.clone(),
+                    max_conns,
                     cancel,
                     reg.clone(),
                     events.clone(),
@@ -968,6 +979,7 @@ async fn download_video_platform(
     url: &str,
     filename: Option<String>,
     target_dir: Option<PathBuf>,
+    max_conns: u32,
     cancel: CancelToken,
     reg: Arc<Mutex<Registry>>,
     events: broadcast::Sender<Event>,
@@ -1032,7 +1044,7 @@ async fn download_video_platform(
             "--no-playlist",
             "--no-warnings",
             "-N",
-            "16",
+            &max_conns.to_string(),
             "-f",
             &format_arg,
             "-o",
@@ -1064,6 +1076,10 @@ async fn download_video_platform(
         use std::io::{BufRead, BufReader};
         let reader = BufReader::new(stdout);
         let mut last_progress = std::time::Instant::now();
+        let mut base_downloaded: u64 = 0;
+        let mut prev_track_downloaded: u64 = 0;
+        let mut prev_track_total: u64 = 0;
+        let mut cumulative_total: u64 = 0;
 
         for line in reader.lines().flatten() {
             if cancel_c.is_cancelled() {
@@ -1075,23 +1091,45 @@ async fn download_video_platform(
                 let raw = line.trim_start_matches("FDM_PROG:").trim();
                 let parts: Vec<&str> = raw.split(':').collect();
                 if parts.len() >= 4 {
-                    let downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
-                    let total: Option<u64> = parts[1].trim().parse().ok().filter(|&t| t > 0);
+                    let curr_downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
+                    let curr_total: Option<u64> = parts[1].trim().parse().ok().filter(|&t| t > 0);
                     let speed_str = parts[2].trim();
                     let eta_str = parts[3].trim();
+
+                    // Detect transition from Video track to Audio track without progress resetting
+                    if curr_downloaded < prev_track_downloaded && prev_track_downloaded > 0 {
+                        base_downloaded += prev_track_downloaded;
+                        prev_track_downloaded = 0;
+                    } else {
+                        prev_track_downloaded = curr_downloaded;
+                    }
+
+                    if let Some(t) = curr_total {
+                        if t != prev_track_total {
+                            cumulative_total = base_downloaded + t;
+                            prev_track_total = t;
+                        }
+                    }
+
+                    let display_downloaded = base_downloaded + curr_downloaded;
+                    let display_total = if cumulative_total > 0 {
+                        Some(cumulative_total.max(display_downloaded))
+                    } else {
+                        curr_total.map(|t| base_downloaded + t)
+                    };
 
                     if last_progress.elapsed() >= std::time::Duration::from_millis(50) {
                         last_progress = std::time::Instant::now();
                         let mut guard = reg_c.lock().unwrap();
                         if guard.is_current(id, generation) {
                             if let Some(entry) = guard.entries.get_mut(&id) {
-                                entry.downloaded = downloaded;
-                                if total.is_some() {
-                                    entry.total = total;
+                                entry.downloaded = display_downloaded;
+                                if display_total.is_some() {
+                                    entry.total = display_total;
                                 }
                                 entry.speed_bps = parse_speed_str(speed_str);
                                 entry.eta_secs = parse_eta_str(eta_str);
-                                entry.active_connections = 16;
+                                entry.active_connections = max_conns;
                                 let snapshot = entry.clone();
                                 let _ = events_c.send(Event::Changed(snapshot));
                             }
@@ -1153,7 +1191,7 @@ async fn download_video_platform(
         path: outcome,
         bytes: file_size,
         elapsed: started.elapsed(),
-        segments_used: 16,
+        segments_used: max_conns,
         category: if is_audio {
             fdm_core::categorize::Category::Music
         } else {

@@ -136,7 +136,7 @@ pub struct DownloadOutcome {
 
 pub struct Engine {
     client: Client,
-    cfg: EngineConfig,
+    cfg: Arc<std::sync::RwLock<EngineConfig>>,
 }
 
 impl Engine {
@@ -144,7 +144,7 @@ impl Engine {
         let client = Client::builder()
             .user_agent(cfg.user_agent.clone())
             .connect_timeout(cfg.connect_timeout)
-            .pool_max_idle_per_host(cfg.max_connections as usize + 8)
+            .pool_max_idle_per_host(128 + 8)
             .pool_idle_timeout(Duration::from_secs(120))
             .tcp_nodelay(true)
             .tcp_keepalive(Duration::from_secs(30))
@@ -153,11 +153,19 @@ impl Engine {
             .http2_keep_alive_timeout(Duration::from_secs(10))
             .build()?;
 
-        Ok(Self { client, cfg })
+        Ok(Self {
+            client,
+            cfg: Arc::new(std::sync::RwLock::new(cfg)),
+        })
     }
 
-    pub fn config(&self) -> &EngineConfig {
-        &self.cfg
+    pub fn config(&self) -> EngineConfig {
+        self.cfg.read().unwrap().clone()
+    }
+
+    pub fn set_max_connections(&self, max_conns: u32) {
+        let max_conns = max_conns.clamp(1, 128);
+        self.cfg.write().unwrap().max_connections = max_conns;
     }
 
     /// Probe, then download. Falls back to a single sequential stream if the
@@ -232,6 +240,7 @@ impl Engine {
         F: FnMut(ProgressSnapshot),
         S: FnMut(&StartInfo),
     {
+        let cfg = self.cfg.read().unwrap().clone();
         let filename = req
             .filename
             .as_deref()
@@ -246,14 +255,14 @@ impl Engine {
         std::fs::create_dir_all(&dir)?;
 
         let target = naming::unique_path(&dir, &filename);
-        let part_path = if self.cfg.use_temp_dir {
+        let part_path = if cfg.use_temp_dir {
             // Partial data goes to the temp directory, so the download folder only
             // ever holds finished files. `scratch::part_path` derives the name from
             // the URL and the intended destination rather than from `target`,
             // because `unique_path` can append " (2)" between attempts and that
             // would orphan the partial data on resume.
-            std::fs::create_dir_all(&self.cfg.temp_dir)?;
-            scratch::part_path(&self.cfg.temp_dir, req.url.as_str(), &dir, &filename)
+            std::fs::create_dir_all(&cfg.temp_dir)?;
+            scratch::part_path(&cfg.temp_dir, req.url.as_str(), &dir, &filename)
         } else {
             let mut s = target.as_os_str().to_owned();
             s.push(".part");
@@ -282,8 +291,8 @@ impl Engine {
                     discard_partial(&part_path, &control_path);
                     Plan::split_even(
                         info.total_size.unwrap_or(0),
-                        self.cfg.max_connections,
-                        self.cfg.min_split_size,
+                        cfg.max_connections,
+                        cfg.min_split_size,
                     )
                 }
             }
@@ -334,13 +343,12 @@ impl Engine {
         // in one segment can wind the others down without mutating state the
         // caller owns.
         let stop = CancelToken::new();
-        let effective_max = if use_ranges { self.cfg.max_connections.max(1) } else { 1 };
+        let effective_max = if use_ranges { cfg.max_connections.max(1) } else { 1 };
 
         let (tx, mut rx) = mpsc::channel::<Result<u32>>(64);
         let mut in_flight: u32 = 0;
 
         let client = self.client.clone();
-        let cfg = self.cfg.clone();
         let url = info.final_url.clone();
         let headers = req.headers.clone();
         let validator = if use_ranges { info.validator.clone() } else { None };
@@ -384,7 +392,7 @@ impl Engine {
             }
         }
 
-        let mut ticker = tokio::time::interval(self.cfg.progress_interval);
+        let mut ticker = tokio::time::interval(cfg.progress_interval);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
         let mut last_checkpoint = Instant::now();
         let mut fatal: Option<Error> = None;
@@ -498,10 +506,11 @@ impl Engine {
         if let Some(dir) = &req.target_dir {
             return dir.clone();
         }
-        if self.cfg.organize_by_type {
-            self.cfg.download_root.join(category.folder())
+        let cfg = self.cfg.read().unwrap();
+        if cfg.organize_by_type {
+            cfg.download_root.join(category.folder())
         } else {
-            self.cfg.download_root.clone()
+            cfg.download_root.clone()
         }
     }
 
@@ -554,8 +563,9 @@ impl Engine {
         // exited, so this drops the last reference.
         drop(file);
 
-        let final_dir = if !explicit_dir && self.cfg.organize_by_type && final_category != category {
-            let better = self.cfg.download_root.join(final_category.folder());
+        let cfg = self.cfg.read().unwrap();
+        let final_dir = if !explicit_dir && cfg.organize_by_type && final_category != category {
+            let better = cfg.download_root.join(final_category.folder());
             std::fs::create_dir_all(&better)?;
             better
         } else {

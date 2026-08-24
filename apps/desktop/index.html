@@ -202,17 +202,31 @@
         </div>
 
         <div class="settings-section">
-          <h4 class="settings-heading">Performance</h4>
+          <h4 class="settings-heading">Performance & Acceleration</h4>
           <div class="setting-row">
             <div class="setting-col">
-              <label class="setting-label">Max Active Downloads</label>
-              <div class="setting-badge" id="cfg-max-active">4</div>
+              <label class="setting-label" for="cfg-max-active">Max Active Downloads</label>
+              <select class="setting-select" id="cfg-max-active">
+                <option value="1">1 Active</option>
+                <option value="2">2 Active</option>
+                <option value="4" selected>4 Active (Default)</option>
+                <option value="8">8 Active</option>
+                <option value="16">16 Active</option>
+              </select>
             </div>
             <div class="setting-col">
-              <label class="setting-label">Max Connections / File</label>
-              <div class="setting-badge" id="cfg-max-conn">16</div>
+              <label class="setting-label" for="cfg-max-conn">Parallel Streams / Connections</label>
+              <select class="setting-select" id="cfg-max-conn">
+                <option value="8">8 Streams (Standard)</option>
+                <option value="16">16 Streams (Fast)</option>
+                <option value="24">24 Streams (Very Fast)</option>
+                <option value="32" selected>32 Streams (Max Turbo — Recommended)</option>
+                <option value="48">48 Streams (Ultra Acceleration)</option>
+                <option value="64">64 Streams (Monster Hyper-Speed)</option>
+              </select>
             </div>
           </div>
+          <p class="setting-hint" style="margin-top: 8px;">Dynamic multi-threaded chunk splitting applies to all direct files and media platform streams.</p>
         </div>
 
         <div class="settings-section">

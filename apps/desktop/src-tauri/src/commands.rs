@@ -87,6 +87,21 @@ pub fn get_config(manager: State<'_, Arc<Manager>>) -> ConfigInfo {
 }
 
 #[tauri::command]
+pub fn update_config(
+    manager: State<'_, Arc<Manager>>,
+    max_active: Option<usize>,
+    max_connections: Option<u32>,
+) -> Result<(), String> {
+    if let Some(active) = max_active {
+        manager.set_max_active(active);
+    }
+    if let Some(conns) = max_connections {
+        manager.set_max_connections(conns);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn open_file(path: String) -> Result<(), String> {
     #[cfg(windows)]
     {
