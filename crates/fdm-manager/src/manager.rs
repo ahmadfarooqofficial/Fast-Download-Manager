@@ -596,95 +596,85 @@ impl Manager {
                 (req, rt.cancel.clone())
             };
 
-            // Resolve video platform URLs (YouTube, TikTok, Vimeo, etc.) to authentic direct media streams
-            let (resolved_url_str, resolved_name) = resolve_video_page(url.as_str(), filename.clone()).await;
-            if let Ok(parsed_resolved) = url::Url::parse(&resolved_url_str) {
-                req.url = parsed_resolved;
-            }
-            if let Some(real_title) = resolved_name {
-                req = req.with_filename(real_title.clone());
-                let mut guard = reg.lock().unwrap();
-                if let Some(entry) = guard.entries.get_mut(&id) {
-                    entry.filename = real_title;
-                    let snapshot = entry.clone();
-                    let _ = events.send(Event::Changed(snapshot));
-                }
-            }
-
-            let on_start = {
-                let reg = reg.clone();
-                let events = events.clone();
-                let store = store.clone();
-                move |info: &StartInfo| {
-                    let snapshot = {
-                        let mut guard = reg.lock().unwrap();
-                        if !guard.is_current(id, generation) {
-                            return;
-                        }
-                        if let Some(rt) = guard.runtime.get_mut(&id) {
-                            rt.part = Some(info.part.clone());
-                            rt.control = Some(info.control.clone());
-                        }
-                        let Some(entry) = guard.entries.get_mut(&id) else {
-                            return;
+            let result = if is_video_platform(url.as_str()) && find_tool("yt-dlp.exe").is_some() {
+                download_video_platform(
+                    id,
+                    generation,
+                    url.as_str(),
+                    filename.clone(),
+                    target_dir.clone(),
+                    cancel,
+                    reg.clone(),
+                    events.clone(),
+                    store.clone(),
+                ).await
+            } else {
+                let on_start = {
+                    let reg = reg.clone();
+                    let events = events.clone();
+                    let store = store.clone();
+                    move |info: &StartInfo| {
+                        let snapshot = {
+                            let mut guard = reg.lock().unwrap();
+                            if !guard.is_current(id, generation) {
+                                return;
+                            }
+                            if let Some(rt) = guard.runtime.get_mut(&id) {
+                                rt.part = Some(info.part.clone());
+                                rt.control = Some(info.control.clone());
+                            }
+                            let Some(entry) = guard.entries.get_mut(&id) else {
+                                return;
+                            };
+                            if !entry.status.is_active() {
+                                return;
+                            }
+                            entry.status = Status::Downloading;
+                            entry.path = Some(info.target.clone());
+                            if let Some(name) = info.target.file_name() {
+                                entry.filename = name.to_string_lossy().into_owned();
+                            }
+                            entry.total = info.total;
+                            entry.category = Some(info.category);
+                            entry.resumable = info.used_ranges;
+                            entry.clone()
                         };
-                        // Paused or cancelled between acquiring the slot and the
-                        // probe returning. Record the paths (done above, they are
-                        // needed for cleanup) but do not claim to be downloading.
-                        if !entry.status.is_active() {
-                            return;
-                        }
-                        entry.status = Status::Downloading;
-                        entry.path = Some(info.target.clone());
-                        if let Some(name) = info.target.file_name() {
-                            entry.filename = name.to_string_lossy().into_owned();
-                        }
-                        entry.total = info.total;
-                        entry.category = Some(info.category);
-                        entry.resumable = info.used_ranges;
-                        entry.clone()
-                    };
-                    let _ = events.send(Event::Changed(snapshot));
-                    // A transition, so it is worth a write: after a crash the
-                    // list can name the file and find its `.part`.
-                    persist_now(&reg, &store);
-                }
-            };
+                        let _ = events.send(Event::Changed(snapshot));
+                        persist_now(&reg, &store);
+                    }
+                };
 
-            let on_progress = {
-                let reg = reg.clone();
-                let events = events.clone();
-                move |p: ProgressSnapshot| {
-                    let snapshot = {
-                        let mut guard = reg.lock().unwrap();
-                        if !guard.is_current(id, generation) {
-                            return;
-                        }
-                        let Some(entry) = guard.entries.get_mut(&id) else {
-                            return;
+                let on_progress = {
+                    let reg = reg.clone();
+                    let events = events.clone();
+                    move |p: ProgressSnapshot| {
+                        let snapshot = {
+                            let mut guard = reg.lock().unwrap();
+                            if !guard.is_current(id, generation) {
+                                return;
+                            }
+                            let Some(entry) = guard.entries.get_mut(&id) else {
+                                return;
+                            };
+                            if !entry.status.is_active() {
+                                return;
+                            }
+                            entry.downloaded = p.downloaded;
+                            entry.total = p.total;
+                            entry.speed_bps = p.speed_bps;
+                            entry.eta_secs = p.eta.map(|d| d.as_secs());
+                            entry.segments = p.segments;
+                            entry.active_connections = p.active_connections;
+                            entry.clone()
                         };
-                        // Stopped by the user; the numbers keep their last value
-                        // rather than ticking on under a "Paused" label.
-                        if !entry.status.is_active() {
-                            return;
-                        }
-                        entry.downloaded = p.downloaded;
-                        entry.total = p.total;
-                        entry.speed_bps = p.speed_bps;
-                        entry.eta_secs = p.eta.map(|d| d.as_secs());
-                        entry.segments = p.segments;
-                        entry.active_connections = p.active_connections;
-                        entry.clone()
-                    };
-                    // Not persisted: four writes a second per download for a
-                    // number the `.fdm` control file already holds.
-                    let _ = events.send(Event::Changed(snapshot));
-                }
-            };
+                        let _ = events.send(Event::Changed(snapshot));
+                    }
+                };
 
-            let result = engine
-                .download_observed(req, cancel, on_progress, on_start)
-                .await;
+                engine
+                    .download_observed(req, cancel, on_progress, on_start)
+                    .await
+            };
 
             // Release the slot before the bookkeeping, so the next queued
             // download starts while this one is being written down.
@@ -919,9 +909,9 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
-async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Option<String>) {
+fn is_video_platform(url: &str) -> bool {
     let lower = url.to_lowercase();
-    let is_video_site = lower.contains("youtube.com/watch")
+    lower.contains("youtube.com/watch")
         || lower.contains("youtube.com/shorts")
         || lower.contains("youtube.com/live")
         || lower.contains("youtu.be/")
@@ -930,25 +920,63 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
         || lower.contains("instagram.com/p/")
         || lower.contains("instagram.com/reel/")
         || lower.contains("twitter.com/")
-        || lower.contains("x.com/");
+        || lower.contains("x.com/")
+}
 
-    if !is_video_site {
-        return (url.to_string(), filename);
+fn parse_speed_str(s: &str) -> f64 {
+    let s = s.trim().to_uppercase();
+    if s.ends_with("KIB/S") || s.ends_with("KB/S") {
+        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0
+    } else if s.ends_with("MIB/S") || s.ends_with("MB/S") {
+        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0 * 1024.0
+    } else if s.ends_with("GIB/S") || s.ends_with("GB/S") {
+        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0) * 1024.0 * 1024.0 * 1024.0
+    } else {
+        s.split_whitespace().next().and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0)
     }
+}
 
-    let Some(ytdlp_path) = find_tool("yt-dlp.exe") else {
-        tracing::debug!("yt-dlp.exe not found; passing raw video link to engine");
-        return (url.to_string(), filename);
-    };
+fn parse_eta_str(s: &str) -> Option<u64> {
+    let parts: Vec<&str> = s.trim().split(':').collect();
+    if parts.len() == 2 {
+        let m: u64 = parts[0].parse().ok()?;
+        let s: u64 = parts[1].parse().ok()?;
+        Some(m * 60 + s)
+    } else if parts.len() == 3 {
+        let h: u64 = parts[0].parse().ok()?;
+        let m: u64 = parts[1].parse().ok()?;
+        let s: u64 = parts[2].parse().ok()?;
+        Some(h * 3600 + m * 60 + s)
+    } else {
+        None
+    }
+}
 
+async fn download_video_platform(
+    id: DownloadId,
+    generation: u64,
+    url: &str,
+    filename: Option<String>,
+    target_dir: Option<PathBuf>,
+    cancel: CancelToken,
+    reg: Arc<Mutex<Registry>>,
+    events: broadcast::Sender<Event>,
+    _store: Arc<Store>,
+) -> fdm_core::Result<fdm_core::DownloadOutcome> {
+    let ytdlp_path = find_tool("yt-dlp.exe").ok_or_else(|| fdm_core::Error::other("yt-dlp.exe not found"))?;
     let deno = find_tool("deno.exe");
+    let ffmpeg = find_tool("ffmpeg.exe");
 
-    let mut format_arg = "bestvideo[ext=mp4]/bestvideo/best".to_string();
-    if let Some(ref name) = filename {
+    let is_audio = filename.as_ref().map(|f| f.contains("(Audio)") || f.ends_with(".mp3") || f.ends_with(".m4a")).unwrap_or(false);
+
+    let mut format_arg = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best".to_string();
+    if is_audio {
+        format_arg = "bestaudio[ext=m4a]/bestaudio/best".to_string();
+    } else if let Some(ref name) = filename {
         for res in [2160, 1440, 1080, 720, 480, 360, 240, 144] {
             if name.contains(&format!("{}p", res)) || name.contains(&format!("{}P", res)) {
                 format_arg = format!(
-                    "bestvideo[height<={}][ext=mp4]/bestvideo[height<={}]/best[height<={}]/bestvideo[ext=mp4]/bestvideo/best",
+                    "bestvideo[height<={}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio/best[height<={}]/bestvideo+bestaudio/best",
                     res, res, res
                 );
                 break;
@@ -956,60 +984,173 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
         }
     }
 
-    let mut args = Vec::new();
-    args.push("--no-playlist".to_string());
-    args.push("--no-warnings".to_string());
-    args.push("--extractor-args".to_string());
-    args.push("youtube:skip=hls".to_string());
-    if let Some(deno_path) = deno {
-        args.push("--js-runtimes".to_string());
-        args.push(format!("deno:{}", deno_path.display()));
+    let default_dir = target_dir.unwrap_or_else(|| {
+        let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+        home.join("Downloads").join("FDM").join(if is_audio { "Music" } else { "Video" })
+    });
+    let _ = std::fs::create_dir_all(&default_dir);
+
+    let output_template = format!("{}/%(title)s.%(ext)s", default_dir.display());
+
+    // Mark as downloading
+    {
+        let mut guard = reg.lock().unwrap();
+        if let Some(entry) = guard.entries.get_mut(&id) {
+            entry.status = Status::Downloading;
+            entry.category = Some(if is_audio {
+                fdm_core::categorize::Category::Music
+            } else {
+                fdm_core::categorize::Category::Video
+            });
+            let snapshot = entry.clone();
+            let _ = events.send(Event::Changed(snapshot));
+        }
     }
-    args.push("-g".to_string());
-    args.push("--get-filename".to_string());
-    args.push("-o".to_string());
-    args.push("%(title)s.%(ext)s".to_string());
-    args.push("-f".to_string());
-    args.push(format_arg);
-    args.push(url.to_string());
 
-    let filename_owned = filename.clone();
+    let started = std::time::Instant::now();
+    let url_owned = url.to_string();
+    let reg_c = reg.clone();
+    let events_c = events.clone();
+    let cancel_c = cancel.clone();
 
-    let resolved = tokio::task::spawn_blocking(move || {
+    let outcome = tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
         let mut cmd = std::process::Command::new(ytdlp_path);
-        cmd.args(&args);
+        cmd.args(&[
+            "--newline",
+            "--progress-template",
+            "download:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
+            "--no-playlist",
+            "--no-warnings",
+            "-N",
+            "16",
+            "-f",
+            &format_arg,
+            "-o",
+            &output_template,
+        ]);
+
+        if let Some(deno_path) = deno {
+            cmd.arg("--js-runtimes").arg(format!("deno:{}", deno_path.display()));
+        }
+        if let Some(ffmpeg_path) = ffmpeg {
+            if let Some(parent) = ffmpeg_path.parent() {
+                cmd.arg("--ffmpeg-location").arg(parent);
+            }
+        }
+        cmd.arg(&url_owned);
+
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
             cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
         }
 
-        if let Ok(output) = cmd.output() {
-            if output.status.success() {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let lines: Vec<&str> = stdout.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
-                if lines.len() >= 2 {
-                    let direct_url = lines[0].to_string();
-                    let real_filename = lines[1].to_string();
-                    return Some((direct_url, Some(real_filename)));
-                } else if lines.len() == 1 {
-                    let direct_url = lines[0].to_string();
-                    return Some((direct_url, filename_owned));
+        let mut child = cmd.spawn().map_err(|e| fdm_core::Error::other(e.to_string()))?;
+        let stdout = child.stdout.take().ok_or_else(|| fdm_core::Error::other("Failed to capture stdout"))?;
+
+        use std::io::{BufRead, BufReader};
+        let reader = BufReader::new(stdout);
+        let mut last_progress = std::time::Instant::now();
+
+        for line in reader.lines().flatten() {
+            if cancel_c.is_cancelled() {
+                let _ = child.kill();
+                return Err(fdm_core::Error::Cancelled);
+            }
+
+            if line.starts_with("download:") {
+                let parts: Vec<&str> = line.trim_start_matches("download:").split(':').collect();
+                if parts.len() >= 4 {
+                    let downloaded: u64 = parts[0].parse().unwrap_or(0);
+                    let total: Option<u64> = parts[1].parse().ok();
+                    let speed_str = parts[2].trim();
+                    let eta_str = parts[3].trim();
+
+                    if last_progress.elapsed() >= std::time::Duration::from_millis(100) {
+                        last_progress = std::time::Instant::now();
+                        let mut guard = reg_c.lock().unwrap();
+                        if guard.is_current(id, generation) {
+                            if let Some(entry) = guard.entries.get_mut(&id) {
+                                entry.downloaded = downloaded;
+                                if total.is_some() {
+                                    entry.total = total;
+                                }
+                                entry.speed_bps = parse_speed_str(speed_str);
+                                entry.eta_secs = parse_eta_str(eta_str);
+                                entry.active_connections = 16;
+                                let snapshot = entry.clone();
+                                let _ = events_c.send(Event::Changed(snapshot));
+                            }
+                        }
+                    }
                 }
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                tracing::warn!(%stderr, "yt-dlp stream resolution failed");
             }
         }
-        None
-    }).await.unwrap_or(None);
 
-    if let Some((direct_url, real_filename)) = resolved {
-        tracing::info!(%direct_url, ?real_filename, "resolved direct video stream via yt-dlp");
-        return (direct_url, real_filename);
+        let status = child.wait().map_err(|e| fdm_core::Error::other(e.to_string()))?;
+        if !status.success() {
+            if cancel_c.is_cancelled() {
+                return Err(fdm_core::Error::Cancelled);
+            }
+            return Err(fdm_core::Error::other("Video download failed"));
+        }
+
+        let mut final_path = default_dir.clone();
+        if let Ok(entries) = std::fs::read_dir(&default_dir) {
+            let mut newest: Option<(std::path::PathBuf, std::time::SystemTime)> = None;
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                    if ext == "mp4" || ext == "m4a" || ext == "webm" || ext == "mkv" {
+                        if let Ok(meta) = entry.metadata() {
+                            if let Ok(modified) = meta.modified() {
+                                if newest.as_ref().map(|(_, t)| modified > *t).unwrap_or(true) {
+                                    newest = Some((path, modified));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some((p, _)) = newest {
+                final_path = p;
+            }
+        }
+
+        Ok(final_path)
+    }).await.map_err(|e| fdm_core::Error::other(e.to_string()))??;
+
+    let file_size = std::fs::metadata(&outcome).map(|m| m.len()).unwrap_or(0);
+
+    {
+        let mut guard = reg.lock().unwrap();
+        if let Some(entry) = guard.entries.get_mut(&id) {
+            entry.path = Some(outcome.clone());
+            entry.downloaded = file_size;
+            entry.total = Some(file_size);
+            if let Some(name) = outcome.file_name() {
+                entry.filename = name.to_string_lossy().into_owned();
+            }
+        }
     }
 
-    (url.to_string(), filename)
+    Ok(fdm_core::DownloadOutcome {
+        path: outcome,
+        bytes: file_size,
+        elapsed: started.elapsed(),
+        segments_used: 16,
+        category: if is_audio {
+            fdm_core::categorize::Category::Music
+        } else {
+            fdm_core::categorize::Category::Video
+        },
+        resumed: false,
+        used_ranges: true,
+    })
 }
 
 fn find_tool(name: &str) -> Option<std::path::PathBuf> {
