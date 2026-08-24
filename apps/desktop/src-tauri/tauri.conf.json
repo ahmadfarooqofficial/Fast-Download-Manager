@@ -7,6 +7,7 @@
     "frontendDist": "../"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Fast Download Manager",

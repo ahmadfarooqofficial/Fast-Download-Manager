@@ -59,9 +59,14 @@ html, body {
 .titlebar-controls {
   display: flex;
   height: 100%;
+  position: relative;
+  z-index: 1000;
+  -webkit-app-region: no-drag;
 }
 
 .titlebar-btn {
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
   width: 44px;
   height: 100%;
   border: none;

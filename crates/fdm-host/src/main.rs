@@ -463,7 +463,29 @@ enum RelayResult {
 async fn try_relay(cmd: &DownloadCommand, ctx: &Arc<Context>) -> RelayResult {
     let mut client = match fdm_ipc::connect().await {
         Ok(c) => c,
-        Err(fdm_ipc::ClientError::NotRunning) => return RelayResult::NotRunning,
+        Err(fdm_ipc::ClientError::NotRunning) => {
+            let mut connected = None;
+            if let Ok(current_exe) = std::env::current_exe() {
+                if let Some(dir) = current_exe.parent() {
+                    let desktop_exe = dir.join("fdm-desktop.exe");
+                    if desktop_exe.exists() {
+                        if let Ok(_child) = std::process::Command::new(&desktop_exe).spawn() {
+                            for _ in 0..15 {
+                                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                                if let Ok(c) = fdm_ipc::connect().await {
+                                    connected = Some(c);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            match connected {
+                Some(c) => c,
+                None => return RelayResult::NotRunning,
+            }
+        }
         Err(e) => return RelayResult::Failed(e.to_string()),
     };
 

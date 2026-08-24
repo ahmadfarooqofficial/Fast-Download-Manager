@@ -2,11 +2,9 @@
 // FDM — Fast Download Manager · Desktop UI Logic
 // ==========================================================================
 
-const { invoke } = window.__TAURI__.core;
-const { listen } = window.__TAURI__.event;
-const { getCurrentWindow } = window.__TAURI__.window;
-
-const appWindow = getCurrentWindow();
+const tauri = window.__TAURI__ || window.__TAURI_INTERNALS__ || {};
+const invoke = (tauri.core && tauri.core.invoke) || tauri.invoke || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+const listen = (tauri.event && tauri.event.listen) || tauri.listen || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.listen);
 
 // --------------------------------------------------------------- State
 let downloads = [];
@@ -293,9 +291,15 @@ document.getElementById('btn-settings-close').addEventListener('click', () => se
 document.getElementById('btn-settings-ok').addEventListener('click', () => settingsDialog.close());
 
 // Window controls
-document.getElementById('titlebar-minimize').addEventListener('click', () => appWindow.minimize());
-document.getElementById('titlebar-maximize').addEventListener('click', () => appWindow.toggleMaximize());
-document.getElementById('titlebar-close').addEventListener('click', () => appWindow.close());
+document.getElementById('titlebar-minimize')?.addEventListener('click', () => {
+  invoke('minimize_window').catch(console.error);
+});
+document.getElementById('titlebar-maximize')?.addEventListener('click', () => {
+  invoke('toggle_maximize_window').catch(console.error);
+});
+document.getElementById('titlebar-close')?.addEventListener('click', () => {
+  invoke('close_window').catch(console.error);
+});
 
 // ------------------------------------------------------------- Initialization
 async function init() {

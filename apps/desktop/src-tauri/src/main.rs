@@ -90,6 +90,13 @@ async fn main() {
 
             tauri::async_runtime::spawn(async move {
                 while let Ok(event) = events.recv().await {
+                    if let fdm_manager::Event::Added(_) = &event {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
                     if let Err(e) = app_handle.emit("download-event", event) {
                         tracing::warn!("Failed to emit event: {}", e);
                     }
@@ -110,7 +117,10 @@ async fn main() {
             clear_finished,
             get_config,
             open_file,
-            open_folder
+            open_folder,
+            minimize_window,
+            toggle_maximize_window,
+            close_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
