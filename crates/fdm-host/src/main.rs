@@ -283,7 +283,12 @@ async fn handle_ping(id: Option<u64>, ctx: &Arc<Context>) {
     }
 }
 
-async fn handle_download(cmd: DownloadCommand, ctx: Arc<Context>) {
+async fn handle_download(mut cmd: DownloadCommand, ctx: Arc<Context>) {
+    // Resolve video streaming links (YouTube, TikTok, Vimeo, etc.) to authentic direct media streams via yt-dlp
+    let (resolved_url, resolved_filename) = resolve_video_page(&cmd.url, cmd.filename.clone()).await;
+    cmd.url = resolved_url;
+    cmd.filename = resolved_filename;
+
     let id = cmd.id;
 
     // --- Try relaying to the running desktop app first ---
@@ -518,6 +523,119 @@ async fn try_relay(cmd: &DownloadCommand, ctx: &Arc<Context>) -> RelayResult {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Option<String>) {
+    let lower = url.to_lowercase();
+    let is_video_site = lower.contains("youtube.com/watch")
+        || lower.contains("youtube.com/shorts")
+        || lower.contains("youtube.com/live")
+        || lower.contains("youtu.be/")
+        || lower.contains("tiktok.com/")
+        || lower.contains("vimeo.com/")
+        || lower.contains("instagram.com/p/")
+        || lower.contains("instagram.com/reel/")
+        || lower.contains("twitter.com/")
+        || lower.contains("x.com/");
+
+    if !is_video_site {
+        return (url.to_string(), filename);
+    }
+
+    let Some(ytdlp_path) = find_tool("yt-dlp.exe") else {
+        tracing::debug!("yt-dlp.exe not found; passing raw video link to engine");
+        return (url.to_string(), filename);
+    };
+
+    let deno = find_tool("deno.exe");
+
+    let mut args = Vec::new();
+    if let Some(deno_path) = deno {
+        args.push("--js-runtimes".to_string());
+        args.push(format!("deno:{}", deno_path.display()));
+    }
+    args.push("-g".to_string());
+    args.push("--get-filename".to_string());
+    args.push("-o".to_string());
+    args.push("%(title)s.%(ext)s".to_string());
+    args.push("-f".to_string());
+    args.push("b/best".to_string());
+    args.push(url.to_string());
+
+    let url_owned = url.to_string();
+    let filename_owned = filename.clone();
+
+    let resolved = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(ytdlp_path);
+        cmd.args(&args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        if let Ok(output) = cmd.output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let lines: Vec<&str> = stdout.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+                if lines.len() >= 2 {
+                    let direct_url = lines[0].to_string();
+                    let real_filename = lines[1].to_string();
+                    return Some((direct_url, Some(real_filename)));
+                } else if lines.len() == 1 {
+                    let direct_url = lines[0].to_string();
+                    return Some((direct_url, filename_owned));
+                }
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                tracing::warn!(%stderr, "yt-dlp stream resolution failed");
+            }
+        }
+        None
+    }).await.unwrap_or(None);
+
+    if let Some((direct_url, real_filename)) = resolved {
+        tracing::info!(%direct_url, ?real_filename, "resolved direct video stream via yt-dlp");
+        return (direct_url, real_filename);
+    }
+
+    (url.to_string(), filename)
+}
+
+fn find_tool(name: &str) -> Option<PathBuf> {
+    // 1. In tools directory relative to the current executable
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let in_tools = dir.join("tools").join(name);
+            if in_tools.exists() {
+                return Some(in_tools);
+            }
+            let next_to = dir.join(name);
+            if next_to.exists() {
+                return Some(next_to);
+            }
+        }
+    }
+
+    // 2. In %LOCALAPPDATA%\FDM\tools
+    if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+        let in_appdata = PathBuf::from(local_appdata).join("FDM").join("tools").join(name);
+        if in_appdata.exists() {
+            return Some(in_appdata);
+        }
+    }
+
+    // 3. In system PATH
+    if let Ok(path_var) = std::env::var("PATH") {
+        for p in std::env::split_paths(&path_var) {
+            let candidate = p.join(name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
+}
 
 /// Whether retrying this download later can plausibly succeed, and therefore
 /// whether the UI should offer "resume" or "this cannot be downloaded".

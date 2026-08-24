@@ -304,6 +304,16 @@ if (Test-Path -LiteralPath (Join-Path $extSrc 'manifest.json')) {
     $absent.Add('extension\manifest.json')
 }
 
+# Copy video extractor tools (yt-dlp.exe, deno.exe) into staging
+$toolsSrc = Join-Path $env:LOCALAPPDATA 'FDM\tools'
+$toolsDst = Join-Path $Staging 'tools'
+if (Test-Path -LiteralPath $toolsSrc) {
+    New-Item -ItemType Directory -Path $toolsDst -Force | Out-Null
+    Copy-Item -Path (Join-Path $toolsSrc '*') -Destination $toolsDst -Recurse -Force
+    $tCount = (Get-ChildItem -LiteralPath $toolsDst -Recurse -File).Count
+    $included.Add("tools\ ($tCount tools)")
+}
+
 foreach ($i in $included) { Write-Ok $i }
 foreach ($a in $absent)   { Write-Warn "not built yet: $a" }
 

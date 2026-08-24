@@ -135,6 +135,9 @@ Source: "{#StagingDir}\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversi
 ;     developer loads via chrome://extensions -> Load unpacked.
 Source: "{#StagingDir}\extension\*"; DestDir: "{app}\extension"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
+; --- Video extractor & JS runtime tools (yt-dlp, deno)
+Source: "{#StagingDir}\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion skipifsourcedoesntexist
 
