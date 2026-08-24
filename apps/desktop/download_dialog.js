@@ -176,25 +176,35 @@ el.btnManager?.addEventListener('click', async () => {
 
 // Initialization
 async function init() {
-  if (!isNaN(downloadId)) {
-    try {
-      const d = await invoke('get_download', { id: downloadId });
-      if (d) render(d);
-    } catch (err) {
-      console.error('Failed to get download:', err);
+  async function refresh() {
+    if (!isNaN(downloadId)) {
+      try {
+        const d = await invoke('get_download', { id: downloadId });
+        if (d) render(d);
+      } catch (err) {
+        console.debug('Failed to get download:', err);
+      }
     }
   }
+
+  await refresh();
+  const pollInterval = setInterval(refresh, 200);
 
   // Real-time updates
   await listen('download-event', (event) => {
     const payload = event.payload;
     if (!payload) return;
 
-    if (payload.Added && payload.Added.id === downloadId) {
-      render(payload.Added);
-    } else if (payload.Changed && payload.Changed.id === downloadId) {
-      render(payload.Changed);
-    } else if (payload.Removed === downloadId) {
+    const added = payload.added || payload.Added;
+    const changed = payload.changed || payload.Changed;
+    const removed = payload.removed !== undefined ? payload.removed : payload.Removed;
+
+    if (added && added.id === downloadId) {
+      render(added);
+    } else if (changed && changed.id === downloadId) {
+      render(changed);
+    } else if (removed === downloadId) {
+      clearInterval(pollInterval);
       invoke('close_window').catch(console.error);
     }
   });

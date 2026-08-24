@@ -304,35 +304,43 @@ document.getElementById('titlebar-close')?.addEventListener('click', () => {
 
 // ------------------------------------------------------------- Initialization
 async function init() {
-  try {
-    downloads = await invoke('list_downloads');
-    render();
-  } catch (err) {
-    console.error('Failed to load initial downloads:', err);
+  async function refresh() {
+    try {
+      downloads = await invoke('list_downloads');
+      render();
+    } catch (err) {
+      console.debug('Failed to load downloads:', err);
+    }
   }
+
+  await refresh();
+  setInterval(refresh, 500);
 
   // Real-time event subscription
   await listen('download-event', (event) => {
     const payload = event.payload;
     if (!payload) return;
 
-    if (payload.Added) {
-      const existing = downloads.findIndex(d => d.id === payload.Added.id);
+    const added = payload.added || payload.Added;
+    const changed = payload.changed || payload.Changed;
+    const removed = payload.removed !== undefined ? payload.removed : payload.Removed;
+
+    if (added) {
+      const existing = downloads.findIndex(d => d.id === added.id);
       if (existing === -1) {
-        downloads.unshift(payload.Added);
+        downloads.unshift(added);
       } else {
-        downloads[existing] = payload.Added;
+        downloads[existing] = added;
       }
-    } else if (payload.Changed) {
-      const idx = downloads.findIndex(d => d.id === payload.Changed.id);
+    } else if (changed) {
+      const idx = downloads.findIndex(d => d.id === changed.id);
       if (idx !== -1) {
-        downloads[idx] = payload.Changed;
+        downloads[idx] = changed;
       } else {
-        downloads.unshift(payload.Changed);
+        downloads.unshift(changed);
       }
-    } else if (payload.Removed !== undefined) {
-      const id = payload.Removed;
-      downloads = downloads.filter(d => d.id !== id);
+    } else if (removed !== undefined) {
+      downloads = downloads.filter(d => d.id !== removed);
     }
     render();
   });
