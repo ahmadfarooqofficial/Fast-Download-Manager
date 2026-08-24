@@ -726,18 +726,44 @@ chrome.runtime.onStartup.addListener(async () => {
 
 // -------------------------------------------------------- Media Sniffer Comms
 
+const tabMediaStreams = new Map();
+
+chrome.tabs?.onRemoved?.addListener((tabId) => {
+  tabMediaStreams.delete(tabId);
+});
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg?.type === 'downloadMedia' && msg.url) {
+  if (msg?.type === 'getTabMediaStreams') {
+    const tabId = sender.tab?.id;
+    sendResponse({ streams: tabId ? tabMediaStreams.get(tabId) || [] : [] });
+    return true;
+  }
+
+  if (msg?.type === 'downloadMedia') {
     (async () => {
-      const headers = await collectHeaders(msg.url, msg.pageUrl || sender.tab?.url);
+      let targetUrl = msg.url;
+      const tabId = sender.tab?.id;
+
+      // If a YouTube watch page URL was passed, resolve it to the captured direct media stream
+      if (/youtube\.com\/watch|youtu\.be/i.test(targetUrl) && tabId) {
+        const streams = tabMediaStreams.get(tabId) || [];
+        if (streams.length > 0) {
+          targetUrl = streams[0].url;
+        }
+      }
+
+      const headers = await collectHeaders(targetUrl, msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/');
+      headers['Referer'] = msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/';
+
       sendToHost({
         type: 'download',
         id: nextId(),
-        url: msg.url,
-        filename: msg.filename || baseName(msg.url) || 'video.mp4',
+        url: targetUrl,
+        filename: msg.filename || baseName(targetUrl) || 'video.mp4',
         headers,
       });
-      sendResponse({ success: true });
+
+      sendResponse({ success: true, url: targetUrl });
     })();
     return true;
   }
@@ -757,12 +783,25 @@ try {
       const ct = details.responseHeaders?.find(h => h.name.toLowerCase() === 'content-type')?.value?.toLowerCase() || '';
       const isMedia = ct.startsWith('video/') || ct.startsWith('audio/') || 
                       ct.includes('vnd.apple.mpegurl') || ct.includes('x-mpegurl') ||
+                      details.url.includes('googlevideo.com/videoplayback') ||
                       details.url.match(/\.(mp4|m4v|webm|mkv|m4a|mp3|m3u8|flv|ts)(\?.*)?$/i);
 
       if (isMedia && !details.url.startsWith('blob:')) {
+        let cleanUrl = details.url;
+        // Strip chunk ranges from YouTube streams so FDM downloads the full file with parallel streams
+        if (cleanUrl.includes('googlevideo.com/videoplayback')) {
+          cleanUrl = cleanUrl.replace(/([?&])range=[^&]+&?/g, '$1').replace(/[?&]$/, '');
+        }
+
+        const streams = tabMediaStreams.get(details.tabId) || [];
+        if (!streams.some(s => s.url === cleanUrl)) {
+          streams.unshift({ url: cleanUrl, contentType: ct, addedAt: Date.now() });
+          tabMediaStreams.set(details.tabId, streams.slice(0, 15));
+        }
+
         chrome.tabs.sendMessage(details.tabId, {
           type: 'mediaStreamDetected',
-          url: details.url,
+          url: cleanUrl,
           contentType: ct,
         }).catch(() => {});
       }
@@ -773,4 +812,5 @@ try {
 } catch (e) {
   console.debug('[fdm] webRequest media listener setup:', e);
 }
+
 
