@@ -469,7 +469,7 @@ impl Engine {
         // Defensive: `run_segment` only reports success once its range is fully
         // fetched, so this should be unreachable. Finalising an incomplete file
         // would hand the user silent corruption, so check anyway.
-        if !plan.is_complete() {
+        if !plan.is_complete() || plan.total_done() == 0 {
             return Err(Error::other(format!(
                 "workers finished with {} of {:?} bytes written",
                 plan.total_done(),

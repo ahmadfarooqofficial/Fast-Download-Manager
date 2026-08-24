@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FDM — Download Progress</title>
+  <title>FDM — Download</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
-<body class="dialog-body">
+<body class="dialog-body" data-tauri-drag-region>
   <!-- Custom Drag Titlebar -->
   <header data-tauri-drag-region class="titlebar dialog-titlebar">
     <div class="titlebar-brand" data-tauri-drag-region>
@@ -15,8 +15,8 @@
         <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914" stroke-width="2" stroke-linejoin="round"/>
         <path d="M12 6V16M12 16L8 12M12 16L16 12" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
-      <span class="brand-name">FDM</span>
-      <span class="brand-subtitle" id="dialog-title-text">Download Status</span>
+      <span class="brand-name" data-tauri-drag-region>FDM</span>
+      <span class="brand-subtitle" id="dialog-title-text" data-tauri-drag-region>Download File Info</span>
     </div>
     <div class="titlebar-controls">
       <button class="titlebar-btn" id="dialog-minimize" title="Minimize" aria-label="Minimize">
@@ -29,19 +29,63 @@
   </header>
 
   <!-- IDM Style Dialog Content -->
-  <main class="dialog-content">
+  <main class="dialog-content" data-tauri-drag-region>
     
-    <!-- 1. ACTIVE / DOWNLOADING VIEW -->
-    <div id="view-active" class="dialog-view">
+    <!-- 1. PROMPT / START DOWNLOAD VIEW (Classic IDM File Info) -->
+    <div id="view-prompt" class="dialog-view prompt-view">
+      <div class="prompt-card">
+        <div class="prompt-row">
+          <label class="prompt-label">URL:</label>
+          <input type="text" class="prompt-input" id="prompt-url" readonly />
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label">Category:</label>
+          <span class="prompt-badge" id="prompt-category">Video</span>
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label">File Name:</label>
+          <input type="text" class="prompt-input prompt-filename-input" id="prompt-filename" />
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label">Save To:</label>
+          <div class="prompt-save-wrap">
+            <input type="text" class="prompt-input prompt-path-input" id="prompt-path" readonly />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons to Start or Queue -->
+      <footer class="dialog-actions prompt-actions">
+        <div class="dialog-actions-left">
+          <button class="btn btn-secondary" id="prompt-btn-later">
+            Download Later
+          </button>
+        </div>
+        <div class="dialog-actions-right">
+          <button class="btn btn-primary btn-start-download" id="prompt-btn-start">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Start Download
+          </button>
+          <button class="btn btn-danger" id="prompt-btn-cancel">
+            Cancel
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 2. ACTIVE / DOWNLOADING PROGRESS VIEW -->
+    <div id="view-active" class="dialog-view" style="display: none;">
       <!-- File Header Card -->
-      <div class="dialog-file-card">
+      <div class="dialog-file-card" data-tauri-drag-region>
         <div class="dialog-file-icon">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
             <polyline points="13 2 13 9 20 9"></polyline>
           </svg>
         </div>
-        <div class="dialog-file-info">
+        <div class="dialog-file-info" data-tauri-drag-region>
           <div class="dialog-filename" id="dlg-filename">Connecting…</div>
           <div class="dialog-url" id="dlg-url">—</div>
         </div>
@@ -107,7 +151,7 @@
       </footer>
     </div>
 
-    <!-- 2. CELEBRATION / COMPLETED VIEW -->
+    <!-- 3. CELEBRATION / COMPLETED VIEW -->
     <div id="view-completed" class="dialog-view celebrate-view" style="display: none;">
       <div class="celebrate-badge">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">

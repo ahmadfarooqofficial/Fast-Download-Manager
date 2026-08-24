@@ -284,20 +284,12 @@ async fn handle_ping(id: Option<u64>, ctx: &Arc<Context>) {
 }
 
 async fn handle_download(mut cmd: DownloadCommand, ctx: Arc<Context>) {
-    // Resolve video streaming links (YouTube, TikTok, Vimeo, etc.) to authentic direct media streams via yt-dlp
-    let (resolved_url, resolved_filename) = resolve_video_page(&cmd.url, cmd.filename.clone()).await;
-    cmd.url = resolved_url;
-    cmd.filename = resolved_filename;
-
     let id = cmd.id;
 
-    // --- Try relaying to the running desktop app first ---
+    // --- Try relaying to the running desktop app first (instant popup!) ---
     match try_relay(&cmd, &ctx).await {
         RelayResult::Handed => {
-            // The desktop app has the download. Nothing more to do here —
-            // progress and completion are the desktop app's responsibility now.
-            // The extension will not see progress from us, but the download is
-            // in the app's list and will complete.
+            // The desktop app has the download and displays the popup immediately.
             return;
         }
         RelayResult::NotRunning => {
@@ -307,6 +299,11 @@ async fn handle_download(mut cmd: DownloadCommand, ctx: Arc<Context>) {
             tracing::warn!(id, error = %e, "IPC relay failed; downloading in-process");
         }
     }
+
+    // --- Fallback: download in-process ---
+    let (resolved_url, resolved_filename) = resolve_video_page(&cmd.url, cmd.filename.clone()).await;
+    cmd.url = resolved_url;
+    cmd.filename = resolved_filename;
 
     // --- Fallback: download in-process (pre-IPC behaviour) ---
 

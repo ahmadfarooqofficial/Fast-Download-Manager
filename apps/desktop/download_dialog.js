@@ -10,7 +10,20 @@ const listen = (tauri.event && tauri.event.listen) || tauri.listen || (window.__
 const urlParams = new URLSearchParams(window.location.search);
 const downloadId = parseInt(urlParams.get('id'), 10);
 
+// Native window dragging on entire background & header
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('button, a, input, select, textarea, .btn')) return;
+  try {
+    if (window.__TAURI_INTERNALS__?.invoke) {
+      window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging');
+    } else if (tauri.window?.getCurrentWindow) {
+      tauri.window.getCurrentWindow().startDragging();
+    }
+  } catch (err) {}
+});
+
 let currentDownload = null;
+let userStarted = false; // Controls prompt vs active downloading view
 
 // Formatters
 function formatBytes(bytes) {
@@ -38,9 +51,19 @@ function formatTime(seconds) {
 }
 
 const el = {
+  viewPrompt: document.getElementById('view-prompt'),
   viewActive: document.getElementById('view-active'),
   viewCompleted: document.getElementById('view-completed'),
   titleText: document.getElementById('dialog-title-text'),
+
+  // Prompt view
+  promptUrl: document.getElementById('prompt-url'),
+  promptCategory: document.getElementById('prompt-category'),
+  promptFilename: document.getElementById('prompt-filename'),
+  promptPath: document.getElementById('prompt-path'),
+  promptBtnStart: document.getElementById('prompt-btn-start'),
+  promptBtnLater: document.getElementById('prompt-btn-later'),
+  promptBtnCancel: document.getElementById('prompt-btn-cancel'),
 
   // Active view
   filename: document.getElementById('dlg-filename'),
@@ -83,6 +106,7 @@ function render(d) {
 
   // If completed, show celebration screen
   if (d.status === 'completed') {
+    el.viewPrompt.style.display = 'none';
     el.viewActive.style.display = 'none';
     el.viewCompleted.style.display = 'flex';
     el.titleText.textContent = 'Download Complete';
@@ -95,7 +119,23 @@ function render(d) {
     return;
   }
 
+  // Populate prompt fields
+  if (el.promptUrl) el.promptUrl.value = d.url || '';
+  if (el.promptFilename) el.promptFilename.value = d.filename || '';
+  if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Video').toUpperCase();
+  if (el.promptPath) el.promptPath.value = d.path || 'Downloads folder';
+
+  // If user hasn't clicked Start Download yet and the download is in initial state
+  if (!userStarted && (d.downloaded === 0 || d.status === 'starting' || d.status === 'connecting' || d.status === 'queued')) {
+    el.viewPrompt.style.display = 'flex';
+    el.viewActive.style.display = 'none';
+    el.viewCompleted.style.display = 'none';
+    el.titleText.textContent = 'Download File Info';
+    return;
+  }
+
   // Active / in-progress view
+  el.viewPrompt.style.display = 'none';
   el.viewActive.style.display = 'flex';
   el.viewCompleted.style.display = 'none';
   el.titleText.textContent = 'Download Status';
@@ -165,6 +205,27 @@ el.btnMin?.addEventListener('click', () => {
   invoke('minimize_window').catch(console.error);
 });
 el.btnClose?.addEventListener('click', () => {
+  invoke('close_window').catch(console.error);
+});
+
+// Prompt Action Buttons
+el.promptBtnStart?.addEventListener('click', async () => {
+  userStarted = true;
+  if (currentDownload) {
+    render(currentDownload);
+    if (currentDownload.status === 'paused') {
+      await invoke('resume_download', { id: downloadId });
+    }
+  }
+});
+
+el.promptBtnLater?.addEventListener('click', async () => {
+  await invoke('pause_download', { id: downloadId });
+  invoke('close_window').catch(console.error);
+});
+
+el.promptBtnCancel?.addEventListener('click', async () => {
+  await invoke('cancel_download', { id: downloadId });
   invoke('close_window').catch(console.error);
 });
 

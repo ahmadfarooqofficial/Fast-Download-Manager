@@ -1000,4 +1000,87 @@ button {
   background: #27ae60 !important;
 }
 
+/* ----------------------------------------------------------- Prompt View (Start Download) */
+.prompt-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: var(--fdm-space-3);
+}
+
+.prompt-card {
+  background: var(--fdm-surface-1);
+  border: 1px solid var(--fdm-border);
+  border-radius: var(--fdm-radius-sm);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prompt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prompt-label {
+  width: 80px;
+  font-size: 12px;
+  font-weight: var(--fdm-weight-semibold);
+  color: var(--fdm-fg-muted);
+  flex-shrink: 0;
+}
+
+.prompt-input {
+  flex: 1;
+  background: var(--fdm-bg);
+  border: 1px solid var(--fdm-border);
+  border-radius: var(--fdm-radius-xs);
+  padding: 6px 10px;
+  color: var(--fdm-fg);
+  font-family: var(--fdm-font-sans);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.prompt-input:focus {
+  border-color: var(--fdm-red);
+}
+
+.prompt-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(229, 9, 20, 0.15);
+  border: 1px solid rgba(229, 9, 20, 0.4);
+  color: #ff4d4d;
+  font-weight: var(--fdm-weight-semibold);
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.prompt-save-wrap {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.btn-start-download {
+  background: #2ecc71 !important;
+  color: #0b0c10 !important;
+  font-weight: var(--fdm-weight-bold);
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-start-download:hover {
+  background: #27ae60 !important;
+}
+
+
 

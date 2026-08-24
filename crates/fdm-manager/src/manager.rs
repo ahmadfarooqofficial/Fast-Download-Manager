@@ -569,7 +569,7 @@ impl Manager {
                 Err(_) => return, // semaphore closed: the app is shutting down
             };
 
-            let (req, cancel) = {
+            let (mut req, cancel) = {
                 let mut guard = reg.lock().unwrap();
                 if !guard.is_current(id, generation) {
                     return;
@@ -586,15 +586,30 @@ impl Manager {
                 let Some(rt) = guard.runtime.get(&id) else {
                     return;
                 };
-                let mut req = DownloadRequest::new(url).with_headers(rt.headers.clone());
-                if let Some(name) = filename {
+                let mut req = DownloadRequest::new(url.clone()).with_headers(rt.headers.clone());
+                if let Some(name) = filename.clone() {
                     req = req.with_filename(name);
                 }
-                if let Some(dir) = target_dir {
+                if let Some(dir) = target_dir.clone() {
                     req = req.with_target_dir(dir);
                 }
                 (req, rt.cancel.clone())
             };
+
+            // Resolve video platform URLs (YouTube, TikTok, Vimeo, etc.) to authentic direct media streams
+            let (resolved_url_str, resolved_name) = resolve_video_page(url.as_str(), filename.clone()).await;
+            if let Ok(parsed_resolved) = url::Url::parse(&resolved_url_str) {
+                req.url = parsed_resolved;
+            }
+            if let Some(real_title) = resolved_name {
+                req = req.with_filename(real_title.clone());
+                let mut guard = reg.lock().unwrap();
+                if let Some(entry) = guard.entries.get_mut(&id) {
+                    entry.filename = real_title;
+                    let snapshot = entry.clone();
+                    let _ = events.send(Event::Changed(snapshot));
+                }
+            }
 
             let on_start = {
                 let reg = reg.clone();
@@ -902,4 +917,126 @@ fn percent_decode(s: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Option<String>) {
+    let lower = url.to_lowercase();
+    let is_video_site = lower.contains("youtube.com/watch")
+        || lower.contains("youtube.com/shorts")
+        || lower.contains("youtube.com/live")
+        || lower.contains("youtu.be/")
+        || lower.contains("tiktok.com/")
+        || lower.contains("vimeo.com/")
+        || lower.contains("instagram.com/p/")
+        || lower.contains("instagram.com/reel/")
+        || lower.contains("twitter.com/")
+        || lower.contains("x.com/");
+
+    if !is_video_site {
+        return (url.to_string(), filename);
+    }
+
+    let Some(ytdlp_path) = find_tool("yt-dlp.exe") else {
+        tracing::debug!("yt-dlp.exe not found; passing raw video link to engine");
+        return (url.to_string(), filename);
+    };
+
+    let deno = find_tool("deno.exe");
+
+    let mut args = Vec::new();
+    args.push("--no-playlist".to_string());
+    args.push("--no-warnings".to_string());
+    if let Some(deno_path) = deno {
+        args.push("--js-runtimes".to_string());
+        args.push(format!("deno:{}", deno_path.display()));
+    }
+    args.push("-g".to_string());
+    args.push("--get-filename".to_string());
+    args.push("-o".to_string());
+    args.push("%(title)s.%(ext)s".to_string());
+    args.push("-f".to_string());
+    args.push("b/best".to_string());
+    args.push(url.to_string());
+
+    let filename_owned = filename.clone();
+
+    let resolved = tokio::task::spawn_blocking(move || {
+        let mut cmd = std::process::Command::new(ytdlp_path);
+        cmd.args(&args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        if let Ok(output) = cmd.output() {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let lines: Vec<&str> = stdout.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+                if lines.len() >= 2 {
+                    let direct_url = lines[0].to_string();
+                    let real_filename = lines[1].to_string();
+                    return Some((direct_url, Some(real_filename)));
+                } else if lines.len() == 1 {
+                    let direct_url = lines[0].to_string();
+                    return Some((direct_url, filename_owned));
+                }
+            } else {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                tracing::warn!(%stderr, "yt-dlp stream resolution failed");
+            }
+        }
+        None
+    }).await.unwrap_or(None);
+
+    if let Some((direct_url, real_filename)) = resolved {
+        tracing::info!(%direct_url, ?real_filename, "resolved direct video stream via yt-dlp");
+        return (direct_url, real_filename);
+    }
+
+    (url.to_string(), filename)
+}
+
+fn find_tool(name: &str) -> Option<std::path::PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let in_tools = dir.join("tools").join(name);
+            if in_tools.exists() {
+                return Some(in_tools);
+            }
+            let next_to = dir.join(name);
+            if next_to.exists() {
+                return Some(next_to);
+            }
+        }
+    }
+
+    if let Ok(local_appdata) = std::env::var("LOCALAPPDATA") {
+        let in_appdata = std::path::PathBuf::from(local_appdata).join("FDM").join("tools").join(name);
+        if in_appdata.exists() {
+            return Some(in_appdata);
+        }
+    }
+
+    let static_paths = [
+        std::path::PathBuf::from(r"D:\Code\FDM\target\release\tools").join(name),
+        std::path::PathBuf::from(r"D:\Code\FDM\target\installer-staging\tools").join(name),
+        std::path::PathBuf::from(r"C:\Program Files\FDM\tools").join(name),
+    ];
+    for p in static_paths {
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    if let Ok(path_var) = std::env::var("PATH") {
+        for p in std::env::split_paths(&path_var) {
+            let candidate = p.join(name);
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    None
 }
