@@ -940,21 +940,18 @@ fn is_video_platform(url: &str) -> bool {
 
 fn parse_speed_str(s: &str) -> f64 {
     let s = s.trim().to_uppercase();
-    if s.contains("GIB/S") || s.contains("GB/S") {
-        let num_str = s.replace("GIB/S", "").replace("GB/S", "");
-        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0 * 1024.0
-    } else if s.contains("MIB/S") || s.contains("MB/S") {
-        let num_str = s.replace("MIB/S", "").replace("MB/S", "");
-        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0 * 1024.0
-    } else if s.contains("KIB/S") || s.contains("KB/S") {
-        let num_str = s.replace("KIB/S", "").replace("KB/S", "");
-        num_str.trim().parse::<f64>().unwrap_or(0.0) * 1024.0
-    } else if s.contains("B/S") {
-        let num_str = s.replace("B/S", "");
-        num_str.trim().parse::<f64>().unwrap_or(0.0)
+    let multiplier = if s.contains("GIB") || s.contains("GB") {
+        1024.0 * 1024.0 * 1024.0
+    } else if s.contains("MIB") || s.contains("MB") {
+        1024.0 * 1024.0
+    } else if s.contains("KIB") || s.contains("KB") {
+        1024.0
     } else {
-        0.0
-    }
+        1.0
+    };
+
+    let cleaned: String = s.chars().filter(|c| c.is_ascii_digit() || *c == '.').collect();
+    cleaned.parse::<f64>().unwrap_or(0.0) * multiplier
 }
 
 fn parse_eta_str(s: &str) -> Option<u64> {
@@ -1052,9 +1049,9 @@ async fn download_video_platform(
             "--no-playlist",
             "--no-warnings",
             "--extractor-args",
-            "youtube:player_client=android,web,tv,ios",
+            "youtube:player_client=android,web;player_skip=webpage,configs",
             "--extractor-args",
-            "youtubetab:player_client=android,web,tv,ios",
+            "youtubetab:player_client=android,web;player_skip=webpage,configs",
             "--retries",
             "15",
             "--fragment-retries",
@@ -1114,10 +1111,10 @@ async fn download_video_platform(
         use std::io::{BufRead, BufReader};
         let reader = BufReader::new(stdout);
         let mut last_progress = std::time::Instant::now();
-        let mut base_downloaded: u64 = 0;
-        let mut prev_track_downloaded: u64 = 0;
-        let mut prev_track_total: u64 = 0;
-        let mut cumulative_total: u64 = 0;
+        let mut track_index: u32 = 0;
+        let mut track1_downloaded: u64 = 0;
+        let mut track1_total: u64 = 0;
+        let is_split_stream = format_arg.contains('+');
         let mut stdout_log = String::new();
 
         for line in reader.lines().flatten() {
@@ -1135,26 +1132,28 @@ async fn download_video_platform(
                     let speed_str = parts[2].trim();
                     let eta_str = parts[3].trim();
 
-                    // Detect transition from Video track to Audio track without progress resetting
-                    if curr_downloaded < prev_track_downloaded && prev_track_downloaded > 0 {
-                        base_downloaded += prev_track_downloaded;
-                        prev_track_downloaded = 0;
-                    } else {
-                        prev_track_downloaded = curr_downloaded;
-                    }
-
-                    if let Some(t) = curr_total {
-                        if t != prev_track_total {
-                            cumulative_total = base_downloaded + t;
-                            prev_track_total = t;
+                    let (display_downloaded, display_total) = if is_split_stream {
+                        // Track 1 (video) -> 0% to 88%, Track 2 (audio) -> 88% to 100%
+                        if curr_downloaded < track1_downloaded && track1_downloaded > 0 && track_index == 0 {
+                            track_index = 1;
                         }
-                    }
 
-                    let display_downloaded = base_downloaded + curr_downloaded;
-                    let display_total = if cumulative_total > 0 {
-                        Some(cumulative_total.max(display_downloaded))
+                        if track_index == 0 {
+                            track1_downloaded = curr_downloaded;
+                            if let Some(t) = curr_total {
+                                track1_total = t;
+                            }
+                            let total_est = if track1_total > 0 { (track1_total as f64 / 0.88) as u64 } else { curr_downloaded };
+                            (curr_downloaded, Some(total_est))
+                        } else {
+                            let track2_total = curr_total.unwrap_or(curr_downloaded.max(1));
+                            let track2_pct = (curr_downloaded as f64 / track2_total as f64).min(1.0);
+                            let total_est = if track1_total > 0 { (track1_total as f64 / 0.88) as u64 } else { track1_downloaded + track2_total };
+                            let current_est = (total_est as f64 * (0.88 + 0.12 * track2_pct)) as u64;
+                            (current_est.min(total_est), Some(total_est))
+                        }
                     } else {
-                        curr_total.map(|t| base_downloaded + t)
+                        (curr_downloaded, curr_total)
                     };
 
                     if last_progress.elapsed() >= std::time::Duration::from_millis(16) {
