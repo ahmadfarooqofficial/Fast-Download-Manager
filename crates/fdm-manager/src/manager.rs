@@ -606,19 +606,23 @@ impl Manager {
             };
 
             let max_conns = engine.config().max_connections;
-            let result = if is_video_platform(url.as_str()) && find_tool("yt-dlp.exe").is_some() {
-                download_video_platform(
-                    id,
-                    generation,
-                    url.as_str(),
-                    filename.clone(),
-                    target_dir.clone(),
-                    max_conns,
-                    cancel,
-                    reg.clone(),
-                    events.clone(),
-                    store.clone(),
-                ).await
+            let result = if is_video_platform(url.as_str()) {
+                if find_tool("yt-dlp.exe").is_none() {
+                    Err(fdm_core::Error::other("yt-dlp.exe is missing. Please place yt-dlp in the tools folder."))
+                } else {
+                    download_video_platform(
+                        id,
+                        generation,
+                        url.as_str(),
+                        filename.clone(),
+                        target_dir.clone(),
+                        max_conns,
+                        cancel,
+                        reg.clone(),
+                        events.clone(),
+                        store.clone(),
+                    ).await
+                }
             } else {
                 let on_start = {
                     let reg = reg.clone();
@@ -1253,6 +1257,27 @@ fn find_tool(name: &str) -> Option<std::path::PathBuf> {
         let in_appdata = std::path::PathBuf::from(local_appdata).join("FDM").join("tools").join(name);
         if in_appdata.exists() {
             return Some(in_appdata);
+        }
+    }
+
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let in_appdata = std::path::PathBuf::from(appdata).join("FDM").join("tools").join(name);
+        if in_appdata.exists() {
+            return Some(in_appdata);
+        }
+    }
+
+    if let Ok(prog_files) = std::env::var("ProgramFiles") {
+        let in_pf = std::path::PathBuf::from(prog_files).join("FDM").join("tools").join(name);
+        if in_pf.exists() {
+            return Some(in_pf);
+        }
+    }
+
+    if let Ok(prog_files_x86) = std::env::var("ProgramFiles(x86)") {
+        let in_pf_x86 = std::path::PathBuf::from(prog_files_x86).join("FDM").join("tools").join(name);
+        if in_pf_x86.exists() {
+            return Some(in_pf_x86);
         }
     }
 
