@@ -993,7 +993,7 @@ async fn download_video_platform(
     let clean_url = clean_media_url(url);
     let is_audio = filename.as_ref().map(|f| f.contains("(Audio)") || f.ends_with(".mp3") || f.ends_with(".m4a")).unwrap_or(false);
 
-    let mut format_arg = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best/b".to_string();
+    let mut format_arg = "bestvideo+bestaudio/best".to_string();
     if is_audio {
         format_arg = "bestaudio[ext=m4a]/bestaudio/best[ext=mp3]/best/b".to_string();
     } else if let Some(ref name) = filename {
@@ -1005,8 +1005,7 @@ async fn download_video_platform(
                 || (res == 4320 && (name.contains("8K") || name.contains("8k")))
             {
                 format_arg = format!(
-                    "bestvideo[height<={}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio/best[height<={}]/bestvideo+bestaudio/best[ext=mp4]/best/b",
-                    res, res, res
+                    "bestvideo[height={res}]+bestaudio/bestvideo[height<={res}]+bestaudio/best[height<={res}]/best",
                 );
                 break;
             }
@@ -1053,8 +1052,8 @@ async fn download_video_platform(
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
             "--no-playlist",
             "--no-warnings",
-            "--extractor-args",
-            "youtube:player_client=android",
+            "--merge-output-format",
+            "mp4",
             "--retries",
             "10",
             "--fragment-retries",

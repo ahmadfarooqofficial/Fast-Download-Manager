@@ -120,49 +120,77 @@
   function getYouTubeAvailableQualities() {
     const heightsSet = new Set();
 
-    // 1. Try to read from YouTube's in-memory player data / streamingData
-    try {
-      if (window.ytInitialPlayerResponse?.streamingData?.adaptiveFormats) {
-        window.ytInitialPlayerResponse.streamingData.adaptiveFormats.forEach(f => {
-          if (f.height) heightsSet.add(f.height);
-        });
-      }
-    } catch (e) {}
-
-    // 2. Try HTML5 player API
+    // 1. Try to read from HTML5 movie player
     try {
       const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
       if (player && typeof player.getAvailableQualityLevels === 'function') {
         const levels = player.getAvailableQualityLevels();
-        (levels || []).forEach(l => {
-          if (YT_LEVELS[l]) heightsSet.add(YT_LEVELS[l]);
-        });
+        if (Array.isArray(levels) && levels.length > 0) {
+          levels.forEach(l => {
+            if (YT_LEVELS[l]) heightsSet.add(YT_LEVELS[l]);
+          });
+        }
       }
-    } catch (e) {}
-
-    // 3. Try to parse ytInitialPlayerResponse from page scripts
-    try {
-      const scripts = document.querySelectorAll('script');
-      for (const s of scripts) {
-        if (s.textContent && s.textContent.includes('ytInitialPlayerResponse')) {
-          const match = s.textContent.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/);
-          if (match && match[1]) {
-            const data = JSON.parse(match[1]);
-            data?.streamingData?.adaptiveFormats?.forEach(f => {
-              if (f.height) heightsSet.add(f.height);
-            });
-          }
-          break;
+      if (player && typeof player.getAvailableQualityData === 'function') {
+        const data = player.getAvailableQualityData();
+        if (Array.isArray(data)) {
+          data.forEach(d => {
+            if (d.quality && YT_LEVELS[d.quality]) heightsSet.add(YT_LEVELS[d.quality]);
+            if (d.height) heightsSet.add(d.height);
+          });
         }
       }
     } catch (e) {}
 
-    // If heights detected, sort descending
+    // 2. Parse from inline page scripts
+    try {
+      const scripts = document.querySelectorAll('script');
+      for (const s of scripts) {
+        const text = s.textContent || '';
+        if (text.includes('ytInitialPlayerResponse')) {
+          const idx = text.indexOf('ytInitialPlayerResponse');
+          const start = text.indexOf('{', idx);
+          if (start !== -1) {
+            let depth = 0;
+            let end = -1;
+            for (let i = start; i < text.length; i++) {
+              if (text[i] === '{') depth++;
+              else if (text[i] === '}') {
+                depth--;
+                if (depth === 0) {
+                  end = i + 1;
+                  break;
+                }
+              }
+            }
+            if (end !== -1) {
+              try {
+                const data = JSON.parse(text.substring(start, end));
+                const formats = [
+                  ...(data?.streamingData?.adaptiveFormats || []),
+                  ...(data?.streamingData?.formats || [])
+                ];
+                formats.forEach(f => {
+                  if (f.height) heightsSet.add(f.height);
+                  else if (f.qualityLabel) {
+                    const match = f.qualityLabel.match(/(\d+)p/i);
+                    if (match) heightsSet.add(parseInt(match[1], 10));
+                  }
+                });
+              } catch (err) {}
+            }
+          }
+          if (heightsSet.size > 0) break;
+        }
+      }
+    } catch (e) {}
+
+    // If heights detected, sort descending (ONLY show available qualities!)
     let heights = [...heightsSet].sort((a, b) => b - a);
 
-    // If none detected from runtime, provide full spectrum
+    // If still empty (rare edge case where scripts are stripped), fallback to standard basic options
     if (!heights.length) {
-      heights = [2160, 1440, 1080, 720, 480, 360];
+      heights = [1080, 720, 480, 360];
     }
 
     const formats = heights.map(h => {
