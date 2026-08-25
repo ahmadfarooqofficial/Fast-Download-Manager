@@ -119,24 +119,26 @@
   position: absolute;
   top: 44px;
   right: 0;
-  width: 230px;
-  max-height: 340px;
+  width: 210px;
+  max-height: 280px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #4a4a52 transparent;
-  padding: 8px;
+  padding: 6px;
   color: #f4f4f5;
-  background: #14171f;
-  border: 1px solid rgba(229, 9, 20, 0.4);
+  background: rgba(18, 21, 29, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(229, 9, 20, 0.5);
   border-radius: 10px;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, .7), 0 0 16px rgba(229, 9, 20, 0.2);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .8), 0 0 16px rgba(229, 9, 20, 0.25);
   animation: af-pop .12s ease;
+  z-index: 2147483647;
 }
 
-#af-panel::-webkit-scrollbar { width: 6px; }
+#af-panel::-webkit-scrollbar { width: 5px; }
 #af-panel::-webkit-scrollbar-track { background: transparent; }
-#af-panel::-webkit-scrollbar-thumb { background: #4a4a52; border-radius: 6px; }
+#af-panel::-webkit-scrollbar-thumb { background: #4a4a52; border-radius: 5px; }
 
 @keyframes af-pop {
   from { opacity: 0; transform: translateY(-6px); }
@@ -144,8 +146,8 @@
 }
 
 #af-panel-head {
-  padding: 4px 8px 8px;
-  font-size: 11px;
+  padding: 4px 8px 6px;
+  font-size: 10.5px;
   font-weight: 700;
   color: #a1a1aa;
   text-transform: uppercase;
@@ -158,20 +160,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
-  margin: 3px 0;
+  padding: 6px 9px;
+  margin: 2px 0;
   color: #f4f4f5;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   text-align: left;
   transition: all 0.15s ease;
 }
 
 .af-item:hover {
-  background: rgba(229, 9, 20, 0.15);
+  background: rgba(229, 9, 20, 0.18);
   border-color: rgba(229, 9, 20, 0.5);
   color: #fff;
 }
@@ -180,10 +182,19 @@
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
-.af-item.video .af-label::before { content: "▸"; color: #e50914; font-size: 14px; }
-.af-item.audio .af-label::before { content: "♪"; color: #e50914; font-size: 14px; }
-.af-size { color: #a1a1aa; font-size: 11px; }
+.af-item.video .af-label::before { content: "▸"; color: #e50914; font-size: 13px; }
+.af-item.audio .af-label::before { content: "♪"; color: #e50914; font-size: 13px; }
+.af-size {
+  color: #ff6b6b;
+  background: rgba(229, 9, 20, 0.15);
+  border: 1px solid rgba(229, 9, 20, 0.35);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
 .af-msg { padding: 10px 8px; color: #a1a1aa; font-size: 12px; line-height: 1.4; }

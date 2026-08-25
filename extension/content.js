@@ -58,39 +58,38 @@
   function buildYouTubeOverlay() {
     if (document.getElementById('af-video-downloader')) return;
 
-    ytRoot = document.createElement('div');
+    ytRoot = document.createElement('section');
     ytRoot.id = 'af-video-downloader';
-
-    const pill = document.createElement('div');
-    pill.className = 'af-pill';
-    pill.innerHTML = `
-      <svg class="af-icon" viewBox="0 0 24 24" fill="none">
-        <path d="M12 3v12m0 0l4-4m-4 4l-4-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      <span class="af-text">Download</span>
+    ytRoot.innerHTML = `
+      <button id="af-toggle" title="Download with FDM" aria-label="Download with FDM">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914"/>
+          <path d="M12 6V16M12 16L8 12M12 16L16 12"/>
+        </svg>
+        <i id="af-tbar" hidden></i>
+      </button>
+      <div id="af-panel" hidden>
+        <div id="af-panel-head"><span id="af-head">Select Quality</span></div>
+        <div id="af-list"></div>
+      </div>
     `;
 
-    ytPanel = document.createElement('div');
-    ytPanel.className = 'af-panel';
-    ytPanel.hidden = true;
+    const toggle = ytRoot.querySelector('#af-toggle');
+    ytPanel = ytRoot.querySelector('#af-panel');
+    ytHead = ytRoot.querySelector('#af-head');
+    ytList = ytRoot.querySelector('#af-list');
 
-    ytHead = document.createElement('div');
-    ytHead.className = 'af-panel-head';
-    ytHead.textContent = 'Select Quality';
-
-    ytList = document.createElement('div');
-    ytList.className = 'af-panel-list';
-
-    ytPanel.appendChild(ytHead);
-    ytPanel.appendChild(ytList);
-    ytRoot.appendChild(pill);
-    ytRoot.appendChild(ytPanel);
-
-    pill.addEventListener('click', (e) => {
+    toggle.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      ytOpen ? closeYouTubePanel() : openYouTubePanel();
+      if (ytOpen) {
+        closeYouTubePanel();
+      } else {
+        openYouTubePanel();
+      }
     });
+
+    ytPanel.addEventListener('click', (e) => e.stopPropagation());
 
     document.addEventListener('click', (e) => {
       if (ytOpen && !ytRoot.contains(e.target)) closeYouTubePanel();
