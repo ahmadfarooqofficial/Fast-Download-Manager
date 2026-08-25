@@ -1049,7 +1049,9 @@ async fn download_video_platform(
             "--no-playlist",
             "--no-warnings",
             "--extractor-args",
-            "youtube:player_client=android,web,tv,ios;youtubetab:player_client=android,web,tv,ios",
+            "youtube:player_client=android,web,tv,ios",
+            "--extractor-args",
+            "youtubetab:player_client=android,web,tv,ios",
             "--compat-options",
             "no-sabr",
             "--retries",
@@ -1115,6 +1117,7 @@ async fn download_video_platform(
         let mut prev_track_downloaded: u64 = 0;
         let mut prev_track_total: u64 = 0;
         let mut cumulative_total: u64 = 0;
+        let mut stdout_log = String::new();
 
         for line in reader.lines().flatten() {
             if cancel_c.is_cancelled() {
@@ -1171,16 +1174,20 @@ async fn download_video_platform(
                         }
                     }
                 }
+            } else if !line.trim().is_empty() {
+                stdout_log.push_str(&line);
+                stdout_log.push('\n');
             }
         }
 
         let err_text = stderr_handle.join().unwrap_or_default();
+        let combined_error = format!("{}\n{}", stdout_log, err_text);
         let status = child.wait().map_err(|e| fdm_core::Error::other(e.to_string()))?;
         if !status.success() {
             if cancel_c.is_cancelled() {
                 return Err(fdm_core::Error::Cancelled);
             }
-            let clean_err = humanize_error(&err_text);
+            let clean_err = humanize_error(&combined_error);
             return Err(fdm_core::Error::other(clean_err));
         }
 
