@@ -1052,8 +1052,6 @@ async fn download_video_platform(
             "youtube:player_client=android,web,tv,ios",
             "--extractor-args",
             "youtubetab:player_client=android,web,tv,ios",
-            "--compat-options",
-            "no-sabr",
             "--retries",
             "15",
             "--fragment-retries",
