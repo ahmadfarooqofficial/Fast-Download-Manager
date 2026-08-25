@@ -1042,8 +1042,11 @@ async fn download_video_platform(
 
     let outcome = tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
         let mut cmd = std::process::Command::new(ytdlp_path);
+        cmd.env("PYTHONUNBUFFERED", "1");
         cmd.args(&[
             "--newline",
+            "--progress-delta",
+            "0.05",
             "--progress-template",
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
             "--no-playlist",
@@ -1154,7 +1157,7 @@ async fn download_video_platform(
                         curr_total.map(|t| base_downloaded + t)
                     };
 
-                    if last_progress.elapsed() >= std::time::Duration::from_millis(50) {
+                    if last_progress.elapsed() >= std::time::Duration::from_millis(16) {
                         last_progress = std::time::Instant::now();
                         let mut guard = reg_c.lock().unwrap();
                         if guard.is_current(id, generation) {

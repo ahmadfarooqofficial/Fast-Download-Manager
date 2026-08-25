@@ -875,7 +875,7 @@ button {
   width: 0%;
   background: linear-gradient(90deg, #e50914 0%, #ff4b2b 50%, #2ecc71 100%);
   border-radius: var(--fdm-radius-sm);
-  transition: width 0.15s ease-out;
+  transition: width 0.04s linear;
   box-shadow: 0 0 10px rgba(46, 204, 113, 0.4);
   position: relative;
   overflow: hidden;

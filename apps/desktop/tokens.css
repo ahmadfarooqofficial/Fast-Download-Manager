@@ -279,7 +279,7 @@ td[data-numeric] {
       var(--fdm-bg) calc(100% / var(--fdm-segments))
     ),
     var(--fdm-red);
-  transition: width var(--fdm-duration-base) var(--fdm-ease-out);
+  transition: width 0.04s linear;
 }
 
 .fdm-progress[data-state="paused"] .fdm-progress__fill {
