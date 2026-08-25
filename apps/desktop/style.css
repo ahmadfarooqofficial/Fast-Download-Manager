@@ -877,6 +877,31 @@ button {
   border-radius: var(--fdm-radius-sm);
   transition: width 0.15s ease-out;
   box-shadow: 0 0 10px rgba(46, 204, 113, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+
+.dialog-progress-fill.shimmer {
+  box-shadow: none;
+}
+
+.dialog-progress-fill.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--fdm-red) 40%,
+    var(--fdm-red) 60%,
+    transparent 100%
+  );
+  animation: fdm-dialog-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes fdm-dialog-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .dialog-progress-meta {

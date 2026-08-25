@@ -215,30 +215,38 @@ function render(d) {
   el.progressSegs.textContent = `${conns} parallel streams`;
 
   if (d.status === 'paused') {
-    el.progressFill.style.background = 'var(--fdm-orange)';
+    el.progressFill.style.background = 'var(--fdm-warning)';
+    el.progressFill.classList.remove('shimmer');
     el.status.textContent = 'Paused';
-    el.status.style.color = 'var(--fdm-orange)';
+    el.status.style.color = 'var(--fdm-warning)';
     el.speed.textContent = '0 B/s';
     el.btnPause.textContent = 'Resume';
     el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'failed') {
     el.progressFill.style.background = 'var(--fdm-red)';
+    el.progressFill.classList.remove('shimmer');
     el.status.textContent = d.error ? `Failed: ${d.error}` : 'Failed';
     el.status.style.color = 'var(--fdm-red)';
     el.speed.textContent = '0 B/s';
     el.btnPause.textContent = 'Retry';
     el.btnPause.className = 'btn btn-primary';
-  } else if (d.status === 'connecting' || d.status === 'queued') {
-    el.progressFill.style.background = 'var(--fdm-blue)';
+  } else if (d.status === 'connecting' || d.status === 'queued' || d.status === 'starting' || (d.status === 'downloading' && downloaded === 0)) {
+    // Connecting / resolving — show shimmer animation
+    el.progressFill.style.width = '100%';
+    el.progressFill.style.background = 'var(--fdm-surface-2)';
+    el.progressFill.classList.add('shimmer');
     el.status.textContent = 'Connecting to server…';
-    el.status.style.color = 'var(--fdm-blue)';
+    el.status.style.color = 'var(--fdm-info)';
+    el.speed.textContent = '—';
+    el.eta.textContent = '—';
     el.btnPause.textContent = 'Pause';
     el.btnPause.className = 'btn btn-secondary';
   } else {
-    // downloading
+    // downloading with actual progress
     el.progressFill.style.background = 'linear-gradient(90deg, #e50914 0%, #ff4b2b 50%, #2ecc71 100%)';
+    el.progressFill.classList.remove('shimmer');
     el.status.textContent = `Downloading (${conns} connections)`;
-    el.status.style.color = 'var(--fdm-blue)';
+    el.status.style.color = 'var(--fdm-info)';
     el.speed.textContent = formatSpeed(d.speed_bps || d.speedBps);
     el.eta.textContent = formatTime(d.eta_secs || d.etaSecs);
     el.btnPause.textContent = 'Pause';

@@ -283,7 +283,7 @@ td[data-numeric] {
 }
 
 .fdm-progress[data-state="paused"] .fdm-progress__fill {
-  background: var(--fdm-red-40);
+  background: var(--fdm-warning);
 }
 
 .fdm-progress[data-state="completed"] .fdm-progress__fill {
@@ -292,6 +292,43 @@ td[data-numeric] {
 
 .fdm-progress[data-state="failed"] .fdm-progress__fill {
   background: var(--fdm-danger);
+}
+
+/* Connecting / Starting — indeterminate shimmer while yt-dlp resolves */
+.fdm-progress[data-state="downloading"] .fdm-progress__fill,
+.fdm-progress[data-state="connecting"] .fdm-progress__fill,
+.fdm-progress[data-state="queued"] .fdm-progress__fill,
+.fdm-progress[data-state="starting"] .fdm-progress__fill {
+  position: relative;
+  overflow: hidden;
+}
+
+.fdm-progress[data-state="connecting"] .fdm-progress__fill,
+.fdm-progress[data-state="queued"] .fdm-progress__fill,
+.fdm-progress[data-state="starting"] .fdm-progress__fill {
+  width: 100% !important;
+  background: var(--fdm-surface-2);
+}
+
+.fdm-progress[data-state="connecting"] .fdm-progress__fill::after,
+.fdm-progress[data-state="queued"] .fdm-progress__fill::after,
+.fdm-progress[data-state="starting"] .fdm-progress__fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--fdm-red) 40%,
+    var(--fdm-red) 60%,
+    transparent 100%
+  );
+  animation: fdm-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes fdm-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .fdm-progress--detail {
