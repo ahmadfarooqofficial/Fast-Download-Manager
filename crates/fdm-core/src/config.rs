@@ -62,9 +62,9 @@ pub struct EngineConfig {
 impl Default for EngineConfig {
     fn default() -> Self {
         Self {
-            max_connections: 32,
-            min_split_size: 512 * 1024,
-            write_buffer: 128 * 1024,
+            max_connections: 64,
+            min_split_size: 256 * 1024,
+            write_buffer: 64 * 1024,
             max_retries: 10,
             connect_timeout: Duration::from_secs(8),
             read_timeout: Duration::from_secs(20),
@@ -73,7 +73,7 @@ impl Default for EngineConfig {
             organize_by_type: true,
             temp_dir: default_temp_dir(),
             use_temp_dir: true,
-            progress_interval: Duration::from_millis(100),
+            progress_interval: Duration::from_millis(16),
         }
     }
 }

@@ -144,7 +144,7 @@ impl Engine {
         let client = Client::builder()
             .user_agent(cfg.user_agent.clone())
             .connect_timeout(cfg.connect_timeout)
-            .pool_max_idle_per_host(128 + 8)
+            .pool_max_idle_per_host(256)
             .pool_idle_timeout(Duration::from_secs(120))
             .tcp_nodelay(true)
             .tcp_keepalive(Duration::from_secs(30))
@@ -387,7 +387,10 @@ impl Engine {
 
         while in_flight < effective_max {
             match plan.claim_idle() {
-                Some(seg) => spawn_segment!(seg),
+                Some(seg) => {
+                    spawn_segment!(seg);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
                 None => break,
             }
         }
@@ -659,7 +662,7 @@ async fn run_segment(
                     // byte zero.
                     seg.set_done(0);
                 }
-                backoff(attempt).await;
+                backoff_for_err(&err, attempt).await;
             }
             Err(err) => return Err(err),
         }
@@ -668,8 +671,19 @@ async fn run_segment(
 
 /// Exponential backoff, capped so a long outage doesn't stall for minutes.
 async fn backoff(attempt: u32) {
-    let millis = 200u64.saturating_mul(1u64 << attempt.min(6));
-    tokio::time::sleep(Duration::from_millis(millis.min(10_000))).await;
+    let millis = 150u64.saturating_mul(1u64 << attempt.min(5));
+    tokio::time::sleep(Duration::from_millis(millis.min(5_000))).await;
+}
+
+async fn backoff_for_err(err: &Error, attempt: u32) {
+    let millis = match err {
+        Error::Status(429) => {
+            // 429 is a rate limit: pause and stagger with jitter
+            750u64 * (attempt as u64).min(4) + ((attempt as u64 * 67) % 300)
+        }
+        _ => 150u64.saturating_mul(1u64 << attempt.min(5)),
+    };
+    tokio::time::sleep(Duration::from_millis(millis.min(6_000))).await;
 }
 
 /// One HTTP request covering the segment's remaining range.

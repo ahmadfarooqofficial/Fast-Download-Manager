@@ -48,45 +48,60 @@ impl RemoteInfo {
 /// extension (cookies, referer, user-agent) — without them, protected downloads
 /// return a login page rather than the file.
 pub async fn probe(client: &Client, url: &Url, extra: &HeaderMap) -> Result<RemoteInfo> {
-    // Ask for a single byte with a fast 5s timeout. A conforming server that supports ranges
-    // answers 206 immediately.
-    let probe_fut = client
-        .get(url.clone())
-        .headers(extra.clone())
-        .header(RANGE, "bytes=0-0")
-        .header(ACCEPT_ENCODING, "identity")
-        .send();
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        let probe_fut = client
+            .get(url.clone())
+            .headers(extra.clone())
+            .header(RANGE, "bytes=0-0")
+            .header(ACCEPT_ENCODING, "identity")
+            .send();
 
-    let response = match tokio::time::timeout(std::time::Duration::from_secs(5), probe_fut).await {
-        Ok(res) => res?,
-        Err(_) => return probe_without_range(client, url, extra).await,
-    };
+        let response = match tokio::time::timeout(std::time::Duration::from_secs(6), probe_fut).await {
+            Ok(Ok(res)) => res,
+            Ok(Err(e)) if attempt < 3 => {
+                tokio::time::sleep(std::time::Duration::from_millis(500 * attempt)).await;
+                continue;
+            }
+            Ok(Err(e)) => return Err(Error::Http(e)),
+            Err(_) => return probe_without_range(client, url, extra).await,
+        };
 
-    let status = response.status();
+        let status = response.status();
 
-    if status == StatusCode::PARTIAL_CONTENT {
-        return Ok(from_partial_response(url, &response));
+        if status == StatusCode::PARTIAL_CONTENT {
+            return Ok(from_partial_response(url, &response));
+        }
+
+        if status.is_success() {
+            // Server ignored the Range header. Size comes from Content-Length; no
+            // parallelism and no resume.
+            return Ok(from_full_response(url, &response, false));
+        }
+
+        if status == StatusCode::TOO_MANY_REQUESTS || status == StatusCode::SERVICE_UNAVAILABLE {
+            if attempt < 4 {
+                drop(response);
+                tokio::time::sleep(std::time::Duration::from_millis(800 * attempt)).await;
+                continue;
+            }
+        }
+
+        // Some servers reject ranged GETs outright but serve a plain request fine.
+        if matches!(
+            status,
+            StatusCode::METHOD_NOT_ALLOWED
+                | StatusCode::NOT_IMPLEMENTED
+                | StatusCode::RANGE_NOT_SATISFIABLE
+                | StatusCode::BAD_REQUEST
+        ) {
+            drop(response);
+            return probe_without_range(client, url, extra).await;
+        }
+
+        return Err(Error::Status(status.as_u16()));
     }
-
-    if status.is_success() {
-        // Server ignored the Range header. Size comes from Content-Length; no
-        // parallelism and no resume.
-        return Ok(from_full_response(url, &response, false));
-    }
-
-    // Some servers reject ranged GETs outright but serve a plain request fine.
-    if matches!(
-        status,
-        StatusCode::METHOD_NOT_ALLOWED
-            | StatusCode::NOT_IMPLEMENTED
-            | StatusCode::RANGE_NOT_SATISFIABLE
-            | StatusCode::BAD_REQUEST
-    ) {
-        drop(response);
-        return probe_without_range(client, url, extra).await;
-    }
-
-    Err(Error::Status(status.as_u16()))
 }
 
 /// Fallback path: HEAD first, then a plain GET if HEAD is unsupported.
