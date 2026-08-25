@@ -1043,6 +1043,16 @@ async fn download_video_platform(
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
             "--no-playlist",
             "--no-warnings",
+            "--extractor-args",
+            "youtube:player_client=android,web,tv,ios",
+            "--compat-options",
+            "no-sabr",
+            "--retries",
+            "10",
+            "--fragment-retries",
+            "10",
+            "--socket-timeout",
+            "30",
             "-N",
             &max_conns.to_string(),
             "-f",
@@ -1072,6 +1082,17 @@ async fn download_video_platform(
 
         let mut child = cmd.spawn().map_err(|e| fdm_core::Error::other(e.to_string()))?;
         let stdout = child.stdout.take().ok_or_else(|| fdm_core::Error::other("Failed to capture stdout"))?;
+        let stderr = child.stderr.take();
+        let stderr_handle = std::thread::spawn(move || {
+            if let Some(mut err_stream) = stderr {
+                use std::io::Read;
+                let mut buf = String::new();
+                let _ = err_stream.read_to_string(&mut buf);
+                buf
+            } else {
+                String::new()
+            }
+        });
 
         use std::io::{BufRead, BufReader};
         let reader = BufReader::new(stdout);
@@ -1139,12 +1160,18 @@ async fn download_video_platform(
             }
         }
 
+        let err_text = stderr_handle.join().unwrap_or_default();
         let status = child.wait().map_err(|e| fdm_core::Error::other(e.to_string()))?;
         if !status.success() {
             if cancel_c.is_cancelled() {
                 return Err(fdm_core::Error::Cancelled);
             }
-            return Err(fdm_core::Error::other("Video download failed"));
+            let clean_err = err_text.lines()
+                .filter(|l| l.contains("ERROR:") || l.contains("Error"))
+                .last()
+                .map(|l| l.trim().to_string())
+                .unwrap_or_else(|| "Video download failed".to_string());
+            return Err(fdm_core::Error::other(clean_err));
         }
 
         let mut final_path = default_dir.clone();
