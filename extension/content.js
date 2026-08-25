@@ -47,50 +47,51 @@
   // ========================================================================
   // 1. YouTube Specific Integration (IDM Style Player Overlay)
   // ========================================================================
-
   const YT_LEVELS = {
     highres: 4320, hd2880: 2880, hd2160: 2160, hd1440: 1440,
     hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144
   };
-  const YT_FALLBACK = [1080, 720, 480, 360];
+  const YT_FALLBACK = [2160, 1440, 1080, 720, 480, 360];
 
   let ytRoot = null, ytPanel = null, ytHead = null, ytList = null, ytOpen = false;
 
   function buildYouTubeOverlay() {
     if (document.getElementById('af-video-downloader')) return;
 
-    ytRoot = document.createElement('section');
+    ytRoot = document.createElement('div');
     ytRoot.id = 'af-video-downloader';
-    ytRoot.innerHTML = `
-      <button id="af-toggle" title="Download with FDM" aria-label="Download with FDM">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914"/>
-          <path d="M12 6V16M12 16L8 12M12 16L16 12"/>
-        </svg>
-        <i id="af-tbar" hidden></i>
-      </button>
-      <div id="af-panel" hidden>
-        <div id="af-panel-head"><span id="af-head">Download Video</span></div>
-        <div id="af-list"></div>
-      </div>
+
+    const pill = document.createElement('div');
+    pill.className = 'af-pill';
+    pill.innerHTML = `
+      <svg class="af-icon" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3v12m0 0l4-4m-4 4l-4-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span class="af-text">Download</span>
     `;
 
-    const toggle = ytRoot.querySelector('#af-toggle');
-    ytPanel = ytRoot.querySelector('#af-panel');
-    ytHead = ytRoot.querySelector('#af-head');
-    ytList = ytRoot.querySelector('#af-list');
+    ytPanel = document.createElement('div');
+    ytPanel.className = 'af-panel';
+    ytPanel.hidden = true;
 
-    toggle.addEventListener('click', (e) => {
-      e.preventDefault();
+    ytHead = document.createElement('div');
+    ytHead.className = 'af-panel-head';
+    ytHead.textContent = 'Select Quality';
+
+    ytList = document.createElement('div');
+    ytList.className = 'af-panel-list';
+
+    ytPanel.appendChild(ytHead);
+    ytPanel.appendChild(ytList);
+    ytRoot.appendChild(pill);
+    ytRoot.appendChild(ytPanel);
+
+    pill.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (ytOpen) {
-        closeYouTubePanel();
-      } else {
-        openYouTubePanel();
-      }
+      ytOpen ? closeYouTubePanel() : openYouTubePanel();
     });
 
-    ytPanel.addEventListener('click', (e) => e.stopPropagation());
     document.addEventListener('click', (e) => {
       if (ytOpen && !ytRoot.contains(e.target)) closeYouTubePanel();
     });
@@ -118,27 +119,76 @@
   }
 
   function getYouTubeAvailableQualities() {
-    let levels = [];
+    const heightsSet = new Set();
+
+    // 1. Try to read from YouTube's in-memory player data / streamingData
     try {
-      const player = document.getElementById('movie_player');
-      if (player && typeof player.getAvailableQualityLevels === 'function') {
-        levels = player.getAvailableQualityLevels();
+      if (window.ytInitialPlayerResponse?.streamingData?.adaptiveFormats) {
+        window.ytInitialPlayerResponse.streamingData.adaptiveFormats.forEach(f => {
+          if (f.height) heightsSet.add(f.height);
+        });
       }
     } catch (e) {}
 
-    const heights = [...new Set((levels || []).map(l => YT_LEVELS[l]).filter(Boolean))].sort((a, b) => b - a);
-    const list = heights.length ? heights : YT_FALLBACK;
+    // 2. Try HTML5 player API
+    try {
+      const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+      if (player && typeof player.getAvailableQualityLevels === 'function') {
+        const levels = player.getAvailableQualityLevels();
+        (levels || []).forEach(l => {
+          if (YT_LEVELS[l]) heightsSet.add(YT_LEVELS[l]);
+        });
+      }
+    } catch (e) {}
 
-    const formats = list.map(h => ({
-      kind: 'video',
-      label: `${h}p HD`,
-      height: h,
-      ext: '.mp4',
-    }));
+    // 3. Try to parse ytInitialPlayerResponse from page scripts
+    try {
+      const scripts = document.querySelectorAll('script');
+      for (const s of scripts) {
+        if (s.textContent && s.textContent.includes('ytInitialPlayerResponse')) {
+          const match = s.textContent.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/);
+          if (match && match[1]) {
+            const data = JSON.parse(match[1]);
+            data?.streamingData?.adaptiveFormats?.forEach(f => {
+              if (f.height) heightsSet.add(f.height);
+            });
+          }
+          break;
+        }
+      }
+    } catch (e) {}
+
+    // If heights detected, sort descending
+    let heights = [...heightsSet].sort((a, b) => b - a);
+
+    // If none detected from runtime, provide full spectrum
+    if (!heights.length) {
+      heights = [2160, 1440, 1080, 720, 480, 360];
+    }
+
+    const formats = heights.map(h => {
+      let label = `${h}p`;
+      let badge = 'HD';
+      if (h >= 4320) { label = '4320p (8K)'; badge = '8K UHD'; }
+      else if (h >= 2160) { label = '2160p (4K)'; badge = '4K UHD'; }
+      else if (h >= 1440) { label = '1440p (2K)'; badge = '2K QHD'; }
+      else if (h >= 1080) { label = '1080p (FHD)'; badge = '1080p'; }
+      else if (h >= 720) { label = '720p (HD)'; badge = '720p'; }
+      else { label = `${h}p (SD)`; badge = `${h}p`; }
+
+      return {
+        kind: 'video',
+        label: label,
+        badge: badge,
+        height: h,
+        ext: '.mp4',
+      };
+    });
 
     formats.push({
       kind: 'audio',
       label: 'Audio · MP3',
+      badge: 'Audio',
       ext: '.mp3',
     });
 
@@ -148,7 +198,7 @@
   function renderYouTubeQualities() {
     if (!ytList) return;
     ytList.innerHTML = '';
-    ytHead.textContent = 'Select Quality (FDM)';
+    ytHead.textContent = 'Select Quality';
 
     const formats = getYouTubeAvailableQualities();
 
@@ -157,7 +207,7 @@
       btn.className = `af-item ${fmt.kind}`;
       btn.innerHTML = `
         <span class="af-label">${fmt.label}</span>
-        <span class="af-size">${fmt.kind === 'audio' ? 'MP3' : 'MP4'}</span>
+        <span class="af-size">${fmt.kind === 'audio' ? 'MP3' : fmt.badge}</span>
       `;
 
       btn.addEventListener('click', () => {

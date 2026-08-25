@@ -997,8 +997,13 @@ async fn download_video_platform(
     if is_audio {
         format_arg = "bestaudio[ext=m4a]/bestaudio/best[ext=mp3]/best/b".to_string();
     } else if let Some(ref name) = filename {
-        for res in [2160, 1440, 1080, 720, 480, 360, 240, 144] {
-            if name.contains(&format!("{}p", res)) || name.contains(&format!("{}P", res)) {
+        for res in [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144] {
+            if name.contains(&format!("{}p", res))
+                || name.contains(&format!("{}P", res))
+                || (res == 2160 && (name.contains("4K") || name.contains("4k")))
+                || (res == 1440 && (name.contains("2K") || name.contains("2k")))
+                || (res == 4320 && (name.contains("8K") || name.contains("8k")))
+            {
                 format_arg = format!(
                     "bestvideo[height<={}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio/best[height<={}]/bestvideo+bestaudio/best[ext=mp4]/best/b",
                     res, res, res
