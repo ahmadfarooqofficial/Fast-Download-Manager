@@ -989,16 +989,17 @@ async fn download_video_platform(
     let deno = find_tool("deno.exe");
     let ffmpeg = find_tool("ffmpeg.exe");
 
+    let clean_url = clean_media_url(url);
     let is_audio = filename.as_ref().map(|f| f.contains("(Audio)") || f.ends_with(".mp3") || f.ends_with(".m4a")).unwrap_or(false);
 
-    let mut format_arg = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best".to_string();
+    let mut format_arg = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best/b".to_string();
     if is_audio {
-        format_arg = "bestaudio[ext=m4a]/bestaudio/best".to_string();
+        format_arg = "bestaudio[ext=m4a]/bestaudio/best[ext=mp3]/best/b".to_string();
     } else if let Some(ref name) = filename {
         for res in [2160, 1440, 1080, 720, 480, 360, 240, 144] {
             if name.contains(&format!("{}p", res)) || name.contains(&format!("{}P", res)) {
                 format_arg = format!(
-                    "bestvideo[height<={}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio/best[height<={}]/bestvideo+bestaudio/best",
+                    "bestvideo[height<={}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={}]+bestaudio/best[height<={}]/bestvideo+bestaudio/best[ext=mp4]/best/b",
                     res, res, res
                 );
                 break;
@@ -1012,7 +1013,7 @@ async fn download_video_platform(
     });
     let _ = std::fs::create_dir_all(&default_dir);
 
-    let output_template = format!("{}/%(title)s.%(ext)s", default_dir.display());
+    let output_template = default_dir.join("%(title)s.%(ext)s").to_string_lossy().into_owned();
 
     // Mark as downloading
     {
@@ -1030,7 +1031,7 @@ async fn download_video_platform(
     }
 
     let started = std::time::Instant::now();
-    let url_owned = url.to_string();
+    let url_owned = clean_url;
     let reg_c = reg.clone();
     let events_c = events.clone();
     let cancel_c = cancel.clone();
@@ -1044,7 +1045,7 @@ async fn download_video_platform(
             "--no-playlist",
             "--no-warnings",
             "--extractor-args",
-            "youtube:player_client=android,web,tv,ios",
+            "youtube:player_client=android,web,tv,ios;youtubetab:player_client=android,web,tv,ios",
             "--compat-options",
             "no-sabr",
             "--retries",
@@ -1310,4 +1311,17 @@ fn humanize_error(raw: &str) -> String {
     } else {
         "Video download failed".to_string()
     }
+}
+
+fn clean_media_url(raw: &str) -> String {
+    if let Ok(parsed) = url::Url::parse(raw) {
+        if let Some(host) = parsed.host_str() {
+            if host.contains("youtube.com") || host.contains("youtu.be") {
+                if let Some((_, video_id)) = parsed.query_pairs().find(|(k, _)| k == "v") {
+                    return format!("https://www.youtube.com/watch?v={}", video_id);
+                }
+            }
+        }
+    }
+    raw.to_string()
 }

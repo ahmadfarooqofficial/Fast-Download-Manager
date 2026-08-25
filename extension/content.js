@@ -166,10 +166,19 @@
 
         closeYouTubePanel();
 
+        let targetUrl = location.href;
+        try {
+          const u = new URL(location.href);
+          if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+            const v = u.searchParams.get('v');
+            if (v) targetUrl = `https://www.youtube.com/watch?v=${v}`;
+          }
+        } catch (e) {}
+
         // Send to FDM Native Host via Background
         chrome.runtime.sendMessage({
           type: 'downloadMedia',
-          url: location.href,
+          url: targetUrl,
           pageUrl: location.href,
           filename: filename,
         }, (res) => {
