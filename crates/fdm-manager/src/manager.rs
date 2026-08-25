@@ -1048,11 +1048,20 @@ async fn download_video_platform(
             "--compat-options",
             "no-sabr",
             "--retries",
-            "10",
+            "15",
             "--fragment-retries",
+            "15",
+            "--file-access-retries",
             "10",
+            "--retry-sleep",
+            "1",
             "--socket-timeout",
             "30",
+            "--buffer-size",
+            "16M",
+            "--http-chunk-size",
+            "10M",
+            "--no-check-certificates",
             "-N",
             &max_conns.to_string(),
             "-f",
@@ -1166,11 +1175,7 @@ async fn download_video_platform(
             if cancel_c.is_cancelled() {
                 return Err(fdm_core::Error::Cancelled);
             }
-            let clean_err = err_text.lines()
-                .filter(|l| l.contains("ERROR:") || l.contains("Error"))
-                .last()
-                .map(|l| l.trim().to_string())
-                .unwrap_or_else(|| "Video download failed".to_string());
+            let clean_err = humanize_error(&err_text);
             return Err(fdm_core::Error::other(clean_err));
         }
 
@@ -1271,4 +1276,38 @@ fn find_tool(name: &str) -> Option<std::path::PathBuf> {
     }
 
     None
+}
+
+fn humanize_error(raw: &str) -> String {
+    let lower = raw.to_lowercase();
+    if lower.contains("sign in to confirm you") || lower.contains("login_required") || lower.contains("bot") {
+        "YouTube sign-in / Bot challenge required".to_string()
+    } else if lower.contains("http error 429") || lower.contains("too many requests") {
+        "Server rate limit (429 Too Many Requests)".to_string()
+    } else if lower.contains("http error 403") || lower.contains("forbidden") {
+        "Access forbidden (403 Forbidden / Expired link)".to_string()
+    } else if lower.contains("http error 404") || lower.contains("not found") {
+        "File not found on server (404 Not Found)".to_string()
+    } else if lower.contains("private video") {
+        "Private video (Access restricted)".to_string()
+    } else if lower.contains("members-only") || lower.contains("members only") {
+        "Members-only video (Sign-in required)".to_string()
+    } else if lower.contains("age-restricted") || lower.contains("confirm your age") {
+        "Age-restricted video (Requires sign-in)".to_string()
+    } else if lower.contains("timed out") || lower.contains("timeout") || lower.contains("connection refused") {
+        "Server connection timed out".to_string()
+    } else if lower.contains("not enough space") || lower.contains("disk full") {
+        "Disk storage full (Not enough free space)".to_string()
+    } else if lower.contains("access is denied") || lower.contains("permission denied") {
+        "Access denied (File locked or permission error)".to_string()
+    } else if let Some(last_err) = raw.lines().filter(|l| l.contains("ERROR:")).last() {
+        let msg = last_err.trim_start_matches("ERROR:").trim();
+        if msg.len() > 60 {
+            format!("{}...", &msg[..60])
+        } else {
+            msg.to_string()
+        }
+    } else {
+        "Video download failed".to_string()
+    }
 }
