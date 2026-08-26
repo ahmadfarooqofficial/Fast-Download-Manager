@@ -610,7 +610,7 @@ impl Manager {
                 Err(_) => return, // semaphore closed: the app is shutting down
             };
 
-            let (req, cancel, audio_url) = {
+            let (req, cancel) = {
                 let mut guard = reg.lock().unwrap();
                 if !guard.is_current(id, generation) {
                     return;
@@ -634,31 +634,12 @@ impl Manager {
                 if let Some(dir) = target_dir.clone() {
                     req = req.with_target_dir(dir);
                 }
-                (req, rt.cancel.clone(), rt.audio_url.clone())
+                (req, rt.cancel.clone())
             };
 
             let max_conns = engine.config().max_connections;
 
-            // If we have a pre-resolved audio URL (from extension's CDN sniffer),
-            // download video+audio with fdm-core and merge with ffmpeg.
-            // This bypasses yt-dlp entirely for YouTube adaptive streams.
-            let result = if audio_url.is_some() && url.as_str().contains("googlevideo.com") {
-                download_and_merge_streams(
-                    id,
-                    generation,
-                    url.as_str(),
-                    audio_url.as_deref().unwrap(),
-                    filename.clone(),
-                    target_dir.clone(),
-                    max_conns,
-                    cancel,
-                    reg.clone(),
-                    events.clone(),
-                    store.clone(),
-                    engine.clone(),
-                    req,
-                ).await
-            } else if is_video_platform(url.as_str()) {
+            let result = if is_video_platform(url.as_str()) {
                 if find_tool("yt-dlp.exe").is_none() {
                     Err(fdm_core::Error::other("yt-dlp.exe is missing. Please place yt-dlp in the tools folder."))
                 } else {
@@ -1027,156 +1008,6 @@ fn parse_eta_str(s: &str) -> Option<u64> {
     }
 }
 
-async fn download_and_merge_streams(
-    id: DownloadId,
-    generation: u64,
-    video_url: &str,
-    audio_url: &str,
-    filename: Option<String>,
-    target_dir: Option<PathBuf>,
-    max_conns: u32,
-    cancel: CancelToken,
-    reg: Arc<Mutex<Registry>>,
-    events: broadcast::Sender<Event>,
-    _store: Arc<Store>,
-    _engine: Arc<Engine>,
-    _req: DownloadRequest,
-) -> fdm_core::Result<fdm_core::DownloadOutcome> {
-    let ffmpeg_path = find_tool("ffmpeg.exe").ok_or_else(|| fdm_core::Error::other("ffmpeg.exe not found"))?;
-
-    let default_dir = target_dir.unwrap_or_else(|| {
-        let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-        home.join("Downloads").join("FDM").join("Video")
-    });
-    let _ = std::fs::create_dir_all(&default_dir);
-
-    let output_file = if let Some(ref name) = filename {
-        default_dir.join(name)
-    } else {
-        default_dir.join("video.mp4")
-    };
-
-    // Mark as downloading
-    {
-        let mut guard = reg.lock().unwrap();
-        if let Some(entry) = guard.entries.get_mut(&id) {
-            entry.status = Status::Downloading;
-            entry.category = Some(fdm_core::categorize::Category::Video);
-            entry.path = Some(output_file.clone());
-            let snapshot = entry.clone();
-            let _ = events.send(Event::Changed(snapshot));
-        }
-    }
-
-    let started = std::time::Instant::now();
-    let video_url_owned = video_url.to_string();
-    let audio_url_owned = audio_url.to_string();
-    let output_file_owned = output_file.clone();
-    let cancel_c = cancel.clone();
-    let reg_c = reg.clone();
-    let events_c = events.clone();
-
-    tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
-        let mut cmd = std::process::Command::new(ffmpeg_path);
-        cmd.args([
-            "-y",
-            "-nostdin",
-            "-progress", "pipe:1",
-            "-i", &video_url_owned,
-            "-i", &audio_url_owned,
-            "-c", "copy",
-            "-movflags", "+faststart",
-            output_file_owned.to_str().unwrap_or("video.mp4"),
-        ]);
-
-        cmd.stdout(std::process::Stdio::piped());
-        cmd.stderr(std::process::Stdio::null());
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        }
-
-        let mut child = cmd.spawn().map_err(|e| fdm_core::Error::other(e.to_string()))?;
-        let stdout = child.stdout.take().ok_or_else(|| fdm_core::Error::other("Failed to capture stdout"))?;
-
-        use std::io::{BufRead, BufReader};
-        let reader = BufReader::new(stdout);
-        let mut last_progress = std::time::Instant::now();
-        let mut last_bytes: u64 = 0;
-        let mut smoothed_speed: f64 = 0.0;
-        let mut last_time = std::time::Instant::now();
-
-        for line in reader.lines().flatten() {
-            if cancel_c.is_cancelled() {
-                let _ = child.kill();
-                let _ = std::fs::remove_file(&output_file_owned);
-                return Err(fdm_core::Error::Cancelled);
-            }
-
-            if line.starts_with("total_size=") {
-                let bytes_str = &line["total_size=".len()..];
-                if let Ok(bytes) = bytes_str.trim().parse::<u64>() {
-                    let dt = last_time.elapsed().as_secs_f64();
-                    if dt >= 0.1 {
-                        let speed = (bytes.saturating_sub(last_bytes)) as f64 / dt;
-                        smoothed_speed = if smoothed_speed > 0.0 {
-                            0.7 * smoothed_speed + 0.3 * speed
-                        } else {
-                            speed
-                        };
-                        last_time = std::time::Instant::now();
-                        last_bytes = bytes;
-                    }
-
-                    if last_progress.elapsed() >= std::time::Duration::from_millis(30) {
-                        last_progress = std::time::Instant::now();
-                        let mut guard = reg_c.lock().unwrap();
-                        if guard.is_current(id, generation) {
-                            if let Some(entry) = guard.entries.get_mut(&id) {
-                                entry.downloaded = bytes;
-                                entry.speed_bps = smoothed_speed;
-                                entry.active_connections = max_conns;
-                                let snapshot = entry.clone();
-                                let _ = events_c.send(Event::Changed(snapshot));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let status = child.wait().map_err(|e| fdm_core::Error::other(e.to_string()))?;
-        if !status.success() {
-            return Err(fdm_core::Error::other("ffmpeg failed to download or mux media streams"));
-        }
-
-        Ok(output_file_owned)
-    }).await.map_err(|e| fdm_core::Error::other(e.to_string()))??;
-
-    let file_size = std::fs::metadata(&output_file).map(|m| m.len()).unwrap_or(0);
-
-    {
-        let mut guard = reg.lock().unwrap();
-        if let Some(entry) = guard.entries.get_mut(&id) {
-            entry.path = Some(output_file.clone());
-            entry.downloaded = file_size;
-            entry.total = Some(file_size);
-        }
-    }
-
-    Ok(fdm_core::DownloadOutcome {
-        path: output_file,
-        bytes: file_size,
-        elapsed: started.elapsed(),
-        segments_used: max_conns,
-        category: fdm_core::categorize::Category::Video,
-        resumed: false,
-        used_ranges: true,
-    })
-}
-
 async fn download_video_platform(
     id: DownloadId,
     generation: u64,
@@ -1191,7 +1022,7 @@ async fn download_video_platform(
     headers: fdm_core::HeaderMap,
 ) -> fdm_core::Result<fdm_core::DownloadOutcome> {
     let ytdlp_path = find_tool("yt-dlp.exe").ok_or_else(|| fdm_core::Error::other("yt-dlp.exe not found"))?;
-    let _deno = find_tool("deno.exe");
+    let deno = find_tool("deno.exe");
     let ffmpeg = find_tool("ffmpeg.exe");
 
     let clean_url = clean_media_url(url);
@@ -1260,29 +1091,27 @@ async fn download_video_platform(
         
         let mut args: Vec<String> = vec![
             "--newline".into(),
-            "--no-cache-dir".into(),
             "--progress-template".into(),
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s".into(),
             "--no-playlist".into(),
             "--no-warnings".into(),
             "--no-check-certificates".into(),
-            "--extractor-retries".into(),
-            "1".into(),
-            "--extractor-args".into(),
-            "youtube:player_client=ios,android;skip=hls,translated_subs".into(),
             "--retries".into(),
             "2".into(),
             "--fragment-retries".into(),
             "2".into(),
             "--file-access-retries".into(),
             "2".into(),
-            "--socket-timeout".into(),
-            "5".into(),
             "-N".into(),
             max_conns.clamp(4, 32).to_string(),
             "--concurrent-fragments".into(),
             "16".into(),
         ];
+
+        if let Some(ref deno_path) = deno {
+            args.push("--js-runtimes".into());
+            args.push(format!("deno:{}", deno_path.display()));
+        }
 
         for (name, val) in headers_c.iter() {
             if let Ok(v_str) = val.to_str() {

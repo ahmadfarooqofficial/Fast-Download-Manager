@@ -314,10 +314,10 @@
           }
         } catch (_) {}
 
-        // Send to FDM Native Host via Background (direct URL if available for instant connection)
+        // Send to FDM Native Host via Background
         chrome.runtime.sendMessage({
           type: 'downloadMedia',
-          url: fmt.directUrl || targetUrl,
+          url: targetUrl,
           pageUrl: location.href,
           filename: filename,
           height: fmt.height || null,
