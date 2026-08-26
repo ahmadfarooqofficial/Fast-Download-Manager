@@ -927,8 +927,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       if (isYouTubePageUrl && tabId) {
         const heightMatch = msg.filename?.match(/(\d{3,4})p/);
-        const requestedHeight = heightMatch ? parseInt(heightMatch[1], 10) : null;
-        const isAudioOnly = msg.filename?.includes('Audio');
+        const requestedHeight = msg.height || (heightMatch ? parseInt(heightMatch[1], 10) : null);
+        const isAudioOnly = msg.filename?.includes('Audio') || msg.filename?.endsWith('.mp3');
 
         if (requestedHeight || isAudioOnly) {
           const directMap = tabVideoDirectUrls.get(tabId);
@@ -1015,6 +1015,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   }
                 }
               } catch (_) {}
+            }
+
+            // Step 3: If exact height not buffered yet, use active playing stream on tab
+            if (!directUrl && directMap && directMap.size > 0) {
+              for (const [itag, url] of directMap.entries()) {
+                if (ITAG_HEIGHT[itag]) {
+                  directUrl = url;
+                  break;
+                }
+              }
+              if (!audioUrl) {
+                for (const audioItag of [140, 251, 250, 249]) {
+                  if (directMap.has(audioItag)) {
+                    audioUrl = directMap.get(audioItag);
+                    break;
+                  }
+                }
+              }
             }
           }
 

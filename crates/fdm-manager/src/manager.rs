@@ -673,6 +673,7 @@ impl Manager {
                         reg.clone(),
                         events.clone(),
                         store.clone(),
+                        req.headers.clone(),
                     ).await
                 }
             } else {
@@ -1187,6 +1188,7 @@ async fn download_video_platform(
     reg: Arc<Mutex<Registry>>,
     events: broadcast::Sender<Event>,
     _store: Arc<Store>,
+    headers: fdm_core::HeaderMap,
 ) -> fdm_core::Result<fdm_core::DownloadOutcome> {
     let ytdlp_path = find_tool("yt-dlp.exe").ok_or_else(|| fdm_core::Error::other("yt-dlp.exe not found"))?;
     let _deno = find_tool("deno.exe");
@@ -1250,6 +1252,7 @@ async fn download_video_platform(
     let reg_c = reg.clone();
     let events_c = events.clone();
     let cancel_c = cancel.clone();
+    let headers_c = headers;
 
     let outcome = tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
         let mut cmd = std::process::Command::new(ytdlp_path);
@@ -1266,7 +1269,7 @@ async fn download_video_platform(
             "--extractor-retries".into(),
             "1".into(),
             "--extractor-args".into(),
-            "youtube:player_client=android;skip=hls,translated_subs".into(),
+            "youtube:player_client=ios,android;skip=hls,translated_subs".into(),
             "--retries".into(),
             "2".into(),
             "--fragment-retries".into(),
@@ -1280,6 +1283,13 @@ async fn download_video_platform(
             "--concurrent-fragments".into(),
             "16".into(),
         ];
+
+        for (name, val) in headers_c.iter() {
+            if let Ok(v_str) = val.to_str() {
+                args.push("--add-header".into());
+                args.push(format!("{}: {}", name.as_str(), v_str));
+            }
+        }
 
         if let Some(ref ffmpeg_path) = ffmpeg {
             if let Some(parent) = ffmpeg_path.parent() {

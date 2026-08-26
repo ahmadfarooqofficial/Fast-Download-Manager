@@ -285,11 +285,25 @@
         <span class="af-size">${fmt.kind === 'audio' ? 'MP3' : fmt.badge}</span>
       `;
 
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const title = cleanTitle();
         const filename = `${title} (${fmt.label.replace(' · ', '_')})${fmt.ext}`;
 
         closeYouTubePanel();
+
+        // Pre-warm the requested quality in YouTube player so webRequest sniffer immediately gets the direct stream URL
+        try {
+          const player = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+          if (player && typeof player.setPlaybackQualityRange === 'function' && fmt.height) {
+            const qualityName = Object.entries(YT_LEVELS).find(([_, h]) => h === fmt.height)?.[0];
+            if (qualityName) {
+              player.setPlaybackQualityRange(qualityName, qualityName);
+            }
+          }
+        } catch (_) {}
+
+        // Allow 60ms for the browser to trigger stream request
+        await new Promise(r => setTimeout(r, 60));
 
         let targetUrl = location.href;
         try {
@@ -306,6 +320,7 @@
           url: fmt.directUrl || targetUrl,
           pageUrl: location.href,
           filename: filename,
+          height: fmt.height || null,
         });
       });
 
