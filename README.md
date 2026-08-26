@@ -180,9 +180,11 @@ fdm hash "D:\Downloads\largefile.iso"
 
 ---
 
-## 📜 License
+## 📜 License & Attribution
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **Apache License, Version 2.0** — see the [LICENSE](LICENSE) file for details.
+
+Per Section 4(d) of the Apache License 2.0, all derivative works, redistributions, and public deployments must include attribution to the original author. See the [NOTICE](NOTICE) file for full details.
 
 ---
 

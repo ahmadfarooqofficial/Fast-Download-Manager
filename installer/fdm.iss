@@ -68,6 +68,7 @@ DefaultGroupName=FDM
 UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\fdm.ico
 LicenseFile=..\LICENSE
+InfoAfterFile=..\NOTICE
 OutputDir=output
 OutputBaseFilename=FDM-Setup-{#AppVersion}
 SetupIconFile=assets\fdm.ico
@@ -140,6 +141,7 @@ Source: "{#StagingDir}\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion re
 
 Source: "assets\fdm.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\NOTICE"; DestDir: "{app}"; DestName: "NOTICE.txt"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Dirs]
