@@ -1026,6 +1026,156 @@ fn parse_eta_str(s: &str) -> Option<u64> {
     }
 }
 
+async fn download_and_merge_streams(
+    id: DownloadId,
+    generation: u64,
+    video_url: &str,
+    audio_url: &str,
+    filename: Option<String>,
+    target_dir: Option<PathBuf>,
+    max_conns: u32,
+    cancel: CancelToken,
+    reg: Arc<Mutex<Registry>>,
+    events: broadcast::Sender<Event>,
+    _store: Arc<Store>,
+    _engine: Arc<Engine>,
+    _req: DownloadRequest,
+) -> fdm_core::Result<fdm_core::DownloadOutcome> {
+    let ffmpeg_path = find_tool("ffmpeg.exe").ok_or_else(|| fdm_core::Error::other("ffmpeg.exe not found"))?;
+
+    let default_dir = target_dir.unwrap_or_else(|| {
+        let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+        home.join("Downloads").join("FDM").join("Video")
+    });
+    let _ = std::fs::create_dir_all(&default_dir);
+
+    let output_file = if let Some(ref name) = filename {
+        default_dir.join(name)
+    } else {
+        default_dir.join("video.mp4")
+    };
+
+    // Mark as downloading
+    {
+        let mut guard = reg.lock().unwrap();
+        if let Some(entry) = guard.entries.get_mut(&id) {
+            entry.status = Status::Downloading;
+            entry.category = Some(fdm_core::categorize::Category::Video);
+            entry.path = Some(output_file.clone());
+            let snapshot = entry.clone();
+            let _ = events.send(Event::Changed(snapshot));
+        }
+    }
+
+    let started = std::time::Instant::now();
+    let video_url_owned = video_url.to_string();
+    let audio_url_owned = audio_url.to_string();
+    let output_file_owned = output_file.clone();
+    let cancel_c = cancel.clone();
+    let reg_c = reg.clone();
+    let events_c = events.clone();
+
+    tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
+        let mut cmd = std::process::Command::new(ffmpeg_path);
+        cmd.args([
+            "-y",
+            "-nostdin",
+            "-progress", "pipe:1",
+            "-i", &video_url_owned,
+            "-i", &audio_url_owned,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            output_file_owned.to_str().unwrap_or("video.mp4"),
+        ]);
+
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::null());
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+
+        let mut child = cmd.spawn().map_err(|e| fdm_core::Error::other(e.to_string()))?;
+        let stdout = child.stdout.take().ok_or_else(|| fdm_core::Error::other("Failed to capture stdout"))?;
+
+        use std::io::{BufRead, BufReader};
+        let reader = BufReader::new(stdout);
+        let mut last_progress = std::time::Instant::now();
+        let mut last_bytes: u64 = 0;
+        let mut smoothed_speed: f64 = 0.0;
+        let mut last_time = std::time::Instant::now();
+
+        for line in reader.lines().flatten() {
+            if cancel_c.is_cancelled() {
+                let _ = child.kill();
+                let _ = std::fs::remove_file(&output_file_owned);
+                return Err(fdm_core::Error::Cancelled);
+            }
+
+            if line.starts_with("total_size=") {
+                let bytes_str = &line["total_size=".len()..];
+                if let Ok(bytes) = bytes_str.trim().parse::<u64>() {
+                    let dt = last_time.elapsed().as_secs_f64();
+                    if dt >= 0.1 {
+                        let speed = (bytes.saturating_sub(last_bytes)) as f64 / dt;
+                        smoothed_speed = if smoothed_speed > 0.0 {
+                            0.7 * smoothed_speed + 0.3 * speed
+                        } else {
+                            speed
+                        };
+                        last_time = std::time::Instant::now();
+                        last_bytes = bytes;
+                    }
+
+                    if last_progress.elapsed() >= std::time::Duration::from_millis(30) {
+                        last_progress = std::time::Instant::now();
+                        let mut guard = reg_c.lock().unwrap();
+                        if guard.is_current(id, generation) {
+                            if let Some(entry) = guard.entries.get_mut(&id) {
+                                entry.downloaded = bytes;
+                                entry.speed_bps = smoothed_speed;
+                                entry.active_connections = max_conns;
+                                let snapshot = entry.clone();
+                                let _ = events_c.send(Event::Changed(snapshot));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let status = child.wait().map_err(|e| fdm_core::Error::other(e.to_string()))?;
+        if !status.success() {
+            return Err(fdm_core::Error::other("ffmpeg failed to download or mux media streams"));
+        }
+
+        Ok(output_file_owned)
+    }).await.map_err(|e| fdm_core::Error::other(e.to_string()))??;
+
+    let file_size = std::fs::metadata(&output_file).map(|m| m.len()).unwrap_or(0);
+
+    {
+        let mut guard = reg.lock().unwrap();
+        if let Some(entry) = guard.entries.get_mut(&id) {
+            entry.path = Some(output_file.clone());
+            entry.downloaded = file_size;
+            entry.total = Some(file_size);
+        }
+    }
+
+    Ok(fdm_core::DownloadOutcome {
+        path: output_file,
+        bytes: file_size,
+        elapsed: started.elapsed(),
+        segments_used: max_conns,
+        category: fdm_core::categorize::Category::Video,
+        resumed: false,
+        used_ranges: true,
+    })
+}
+
 async fn download_video_platform(
     id: DownloadId,
     generation: u64,
