@@ -951,14 +951,50 @@ button {
   letter-spacing: -0.02em;
 }
 
+.celebrate-drag-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--fdm-surface-2);
+  border: 1.5px dashed var(--fdm-red);
+  border-radius: var(--fdm-radius-md);
+  padding: 6px 12px;
+  max-width: 95%;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.celebrate-drag-chip:hover {
+  background: rgba(229, 9, 20, 0.15);
+  border-color: #ff4d4d;
+}
+
+.celebrate-drag-chip:active {
+  cursor: grabbing;
+}
+
+.celebrate-drag-tag {
+  font-size: 9.5px;
+  font-weight: var(--fdm-weight-bold);
+  background: var(--fdm-red);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: var(--fdm-radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+}
+
 .celebrate-filename {
   font-size: 12px;
   color: var(--fdm-fg);
   font-weight: var(--fdm-weight-semibold);
-  max-width: 90%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
 .celebrate-card {

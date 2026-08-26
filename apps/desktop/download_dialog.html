@@ -152,22 +152,31 @@
     </div>
 
     <!-- 3. CELEBRATION / COMPLETED VIEW -->
-    <div id="view-completed" class="dialog-view celebrate-view" style="display: none;">
-      <div class="celebrate-badge">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <div id="view-completed" class="dialog-view celebrate-view" style="display: none;" data-tauri-drag-region>
+      <div class="celebrate-badge" data-tauri-drag-region>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
       </div>
-      <h2 class="celebrate-title">🎉 Hurray! Your download is complete!</h2>
-      <div class="celebrate-filename" id="celebrate-filename">—</div>
+      <h2 class="celebrate-title" data-tauri-drag-region>Download Complete</h2>
       
-      <div class="celebrate-card">
-        <div class="celebrate-row">
+      <!-- IDM Style Draggable File Chip -->
+      <div class="celebrate-drag-chip" id="celebrate-drag-chip" title="Drag to desktop/folder or click to open" draggable="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span class="celebrate-filename" id="celebrate-filename">—</span>
+        <span class="celebrate-drag-tag">Drag & Drop</span>
+      </div>
+      
+      <div class="celebrate-card" data-tauri-drag-region>
+        <div class="celebrate-row" data-tauri-drag-region>
           <span class="celebrate-label">Saved to:</span>
           <span class="celebrate-value" id="celebrate-path">—</span>
         </div>
-        <div class="celebrate-row">
+        <div class="celebrate-row" data-tauri-drag-region>
           <span class="celebrate-label">Total Size:</span>
           <span class="celebrate-value highlight-size" id="celebrate-size">—</span>
         </div>
@@ -177,11 +186,14 @@
         <button class="btn btn-primary btn-celebrate-open" id="celebrate-btn-open">
           Open File
         </button>
-        <button class="btn btn-secondary" id="celebrate-btn-close">
-          Close
+        <button class="btn btn-secondary" id="celebrate-btn-folder" title="Show in folder">
+          Open Folder
         </button>
         <button class="btn btn-secondary" id="celebrate-btn-manager">
           Open Manager
+        </button>
+        <button class="btn btn-secondary" id="celebrate-btn-close">
+          Close
         </button>
       </footer>
     </div>

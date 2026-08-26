@@ -394,7 +394,7 @@ impl Manager {
                 Some((dir, name)) => (Some(dir), Some(name)),
                 None => {
                     let rt = reg.runtime.get(&id);
-                    (rt.and_then(|r| r.target_dir.clone()), None)
+                    (rt.and_then(|r| r.target_dir.clone()), Some(entry.filename.clone()))
                 }
             };
 
@@ -1014,7 +1014,7 @@ async fn download_video_platform(
     _store: Arc<Store>,
 ) -> fdm_core::Result<fdm_core::DownloadOutcome> {
     let ytdlp_path = find_tool("yt-dlp.exe").ok_or_else(|| fdm_core::Error::other("yt-dlp.exe not found"))?;
-    let deno = find_tool("deno.exe");
+    let _deno = find_tool("deno.exe");
     let ffmpeg = find_tool("ffmpeg.exe");
 
     let clean_url = clean_media_url(url);
@@ -1045,7 +1045,15 @@ async fn download_video_platform(
     });
     let _ = std::fs::create_dir_all(&default_dir);
 
-    let output_template = default_dir.join("%(title)s.%(ext)s").to_string_lossy().into_owned();
+    let output_template = if let Some(ref custom_name) = filename {
+        let stem = std::path::Path::new(custom_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("%(title)s");
+        default_dir.join(format!("{}.%(ext)s", stem)).to_string_lossy().into_owned()
+    } else {
+        default_dir.join("%(title)s (%(height)sp).%(ext)s").to_string_lossy().into_owned()
+    };
 
     // Mark as downloading
     {
@@ -1074,31 +1082,29 @@ async fn download_video_platform(
         
         let mut args: Vec<String> = vec![
             "--newline".into(),
+            "--no-cache-dir".into(),
             "--progress-template".into(),
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s".into(),
             "--no-playlist".into(),
             "--no-warnings".into(),
             "--no-check-certificates".into(),
+            "--extractor-retries".into(),
+            "1".into(),
             "--extractor-args".into(),
-            "youtube:skip=hls,translated_subs".into(),
+            "youtube:player_client=android;skip=hls,translated_subs".into(),
             "--retries".into(),
-            "5".into(),
+            "2".into(),
             "--fragment-retries".into(),
-            "5".into(),
+            "2".into(),
             "--file-access-retries".into(),
-            "3".into(),
+            "2".into(),
             "--socket-timeout".into(),
-            "10".into(),
+            "5".into(),
             "-N".into(),
             max_conns.clamp(4, 32).to_string(),
             "--concurrent-fragments".into(),
             "16".into(),
         ];
-
-        if let Some(ref deno_path) = deno {
-            args.push("--js-runtimes".into());
-            args.push(format!("deno:{}", deno_path.display()));
-        }
 
         if let Some(ref ffmpeg_path) = ffmpeg {
             if let Some(parent) = ffmpeg_path.parent() {
@@ -1122,13 +1128,6 @@ async fn download_video_platform(
         args.push(format_arg.clone());
         args.push("-o".into());
         args.push(output_template);
-
-        if let Some(ffmpeg_path) = ffmpeg {
-            if let Some(parent) = ffmpeg_path.parent() {
-                args.push("--ffmpeg-location".into());
-                args.push(parent.display().to_string());
-            }
-        }
 
         args.push(url_owned);
         cmd.args(&args);

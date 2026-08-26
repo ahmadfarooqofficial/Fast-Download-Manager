@@ -416,12 +416,30 @@
     if (isYouTubeWatch()) {
       mountYouTubeOverlay();
       if (currentVideoId && currentVideoId !== activeVideoId) {
+        if (activeVideoId) qualitiesCache.delete(activeVideoId);
+        qualitiesCache.delete(currentVideoId);
         activeVideoId = currentVideoId;
         closeYouTubePanel();
+        if (ytList) ytList.innerHTML = '<div class="af-msg">Reading available qualities…</div>';
         setTimeout(() => {
           getYouTubeAvailableQualities().catch(() => {});
-        }, 300);
+        }, 150);
       }
+    }
+  }
+
+  function setupPlayerVideoListeners() {
+    const video = document.querySelector('video');
+    if (video && !video.__fdmListenerAttached) {
+      video.__fdmListenerAttached = true;
+      video.addEventListener('playing', () => {
+        checkVideoIdChange();
+        getYouTubeAvailableQualities().catch(() => {});
+      });
+      video.addEventListener('loadeddata', () => {
+        checkVideoIdChange();
+        getYouTubeAvailableQualities().catch(() => {});
+      });
     }
   }
 
@@ -430,6 +448,8 @@
     if (isYouTube()) {
       if (isYouTubeWatch()) {
         buildYouTubeOverlay();
+        setupPlayerVideoListeners();
+        getYouTubeAvailableQualities().catch(() => {});
       }
     } else {
       scanGeneralMedia();
@@ -446,6 +466,7 @@
     if (!snifferEnabled) return;
     if (isYouTube()) {
       checkVideoIdChange();
+      setupPlayerVideoListeners();
     } else {
       scanGeneralMedia();
     }
@@ -454,10 +475,15 @@
   window.addEventListener('yt-navigate-finish', () => {
     checkVideoIdChange();
     mountYouTubeOverlay();
+    setupPlayerVideoListeners();
+    setTimeout(() => {
+      getYouTubeAvailableQualities().catch(() => {});
+    }, 200);
   });
   window.addEventListener('yt-page-data-updated', () => {
     checkVideoIdChange();
     mountYouTubeOverlay();
+    setupPlayerVideoListeners();
   });
   window.addEventListener('popstate', () => {
     checkVideoIdChange();
@@ -467,6 +493,7 @@
     if (isYouTube() && snifferEnabled) {
       checkVideoIdChange();
       mountYouTubeOverlay();
+      setupPlayerVideoListeners();
     }
   }, 1000);
 })();

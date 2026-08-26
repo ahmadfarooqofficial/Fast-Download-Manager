@@ -403,7 +403,30 @@ el.btnManager?.addEventListener('click', async () => {
 });
 
 // Completed / Celebration Action buttons
+el.celebrateBtnFolder = document.getElementById('celebrate-btn-folder');
+el.celebrateDragChip = document.getElementById('celebrate-drag-chip');
+
 el.celebrateBtnOpen?.addEventListener('click', async () => {
+  if (currentDownload?.path) {
+    await invoke('open_file', { path: currentDownload.path });
+  }
+});
+
+el.celebrateBtnFolder?.addEventListener('click', async () => {
+  if (currentDownload?.path) {
+    await invoke('open_folder', { path: currentDownload.path });
+  }
+});
+
+el.celebrateDragChip?.addEventListener('dragstart', (e) => {
+  if (currentDownload?.path) {
+    e.dataTransfer.setData('text/plain', currentDownload.path);
+    e.dataTransfer.setData('text/uri-list', `file:///${currentDownload.path.replace(/\\/g, '/')}`);
+    e.dataTransfer.effectAllowed = 'copyMove';
+  }
+});
+
+el.celebrateDragChip?.addEventListener('click', async () => {
   if (currentDownload?.path) {
     await invoke('open_file', { path: currentDownload.path });
   }
@@ -415,6 +438,13 @@ el.celebrateBtnClose?.addEventListener('click', () => {
 
 el.celebrateBtnManager?.addEventListener('click', async () => {
   await invoke('show_main_window');
+  invoke('close_window').catch(console.error);
+});
+
+// Smooth Window Dragging
+document.addEventListener('mousedown', (e) => {
+  if (e.target.closest('button, input, select, a, .celebrate-drag-chip, .prompt-card, .dialog-grid')) return;
+  window.__TAURI__?.window?.getCurrentWindow()?.startDragging().catch(() => {});
 });
 
 // Initialization & Live Sync

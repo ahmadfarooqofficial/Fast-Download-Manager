@@ -763,6 +763,12 @@ function readPlayer() {
     const player = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
     const data = (player && typeof player.getVideoData === 'function') ? (player.getVideoData() || {}) : {};
     
+    // Check if player has transitioned to the expected video
+    const actualVideoId = data.video_id || '';
+    if (expectedVideoId && actualVideoId && actualVideoId !== expectedVideoId) {
+      return { notReady: true, expectedVideoId, actualVideoId, levels: [] };
+    }
+
     let levels = [];
     if (player && typeof player.getAvailableQualityLevels === 'function') {
       levels = player.getAvailableQualityLevels() || [];
@@ -780,10 +786,15 @@ function readPlayer() {
       if (player && typeof player.getPlayerResponse === 'function') {
         resp = player.getPlayerResponse();
       }
-      if (!resp || (expectedVideoId && resp.videoDetails?.videoId && resp.videoDetails.videoId !== expectedVideoId)) {
+      if (resp && expectedVideoId && resp.videoDetails?.videoId && resp.videoDetails.videoId !== expectedVideoId) {
+        resp = null;
+      }
+      if (!resp) {
         const watchFlexy = document.querySelector('ytd-watch-flexy');
         if (watchFlexy && watchFlexy.playerData) {
-          resp = watchFlexy.playerData;
+          if (!expectedVideoId || watchFlexy.playerData.videoDetails?.videoId === expectedVideoId) {
+            resp = watchFlexy.playerData;
+          }
         }
       }
       if (!resp && window.ytInitialPlayerResponse) {
@@ -803,6 +814,7 @@ function readPlayer() {
           qualityLabel: f.qualityLabel,
           mimeType: f.mimeType,
           bitrate: f.bitrate,
+          contentLength: f.contentLength,
           url: f.url || '',
         }));
       }
@@ -862,7 +874,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg?.type === 'downloadMedia') {
     (async () => {
-      let targetUrl = msg.pageUrl || msg.url;
+      let targetUrl = msg.url || msg.pageUrl;
       const headers = await collectHeaders(targetUrl, msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/');
       headers['Referer'] = msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/';
 
