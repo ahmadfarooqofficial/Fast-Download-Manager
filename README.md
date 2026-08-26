@@ -7,7 +7,7 @@
 **High-speed parallel download acceleration & media streaming manager for Windows.**  
 *Free, open source, privacy-first, zero telemetry.*
 
-[![GitHub Release](https://img.shields.io/github/v/release/ahmadfarooq/fdm?style=flat-square&color=e50914)](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/ahmadfarooqofficial/Fast-Download-Manager?style=flat-square&color=e50914)](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/ahmadfarooq/fdm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7?style=flat-square&logo=windows)](https://github.com/ahmadfarooq/fdm)
