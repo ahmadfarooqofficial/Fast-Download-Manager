@@ -553,8 +553,6 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
         return (url.to_string(), filename);
     };
 
-    let deno = find_tool("deno.exe");
-
     let mut format_arg = "bestvideo[ext=mp4]/bestvideo/best".to_string();
     if let Some(ref name) = filename {
         for res in [2160, 1440, 1080, 720, 480, 360, 240, 144] {
@@ -571,12 +569,9 @@ async fn resolve_video_page(url: &str, filename: Option<String>) -> (String, Opt
     let mut args = Vec::new();
     args.push("--no-playlist".to_string());
     args.push("--no-warnings".to_string());
+    args.push("--no-check-certificates".to_string());
     args.push("--extractor-args".to_string());
-    args.push("youtube:skip=hls".to_string());
-    if let Some(deno_path) = deno {
-        args.push("--js-runtimes".to_string());
-        args.push(format!("deno:{}", deno_path.display()));
-    }
+    args.push("youtube:player_client=android,web;skip=hls,translated_subs".to_string());
     args.push("-g".to_string());
     args.push("--get-filename".to_string());
     args.push("-o".to_string());

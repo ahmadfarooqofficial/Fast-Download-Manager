@@ -9,7 +9,17 @@
   window.__fdmSnifferLoaded = true;
 
   let snifferEnabled = true;
-  const isYouTube = () => /^(https?:\/\/)?([\w-]+\.)?(youtube\.com\/(watch|shorts|live)|youtu\.be\/)/i.test(location.href);
+
+  function isYouTube() {
+    return window.location.hostname.includes('youtube.com') || window.location.hostname.includes('youtu.be');
+  }
+
+  function isYouTubeWatch() {
+    if (!isYouTube()) return false;
+    const path = window.location.pathname;
+    const search = window.location.search;
+    return path.includes('/watch') || path.includes('/shorts') || path.includes('/live') || path.includes('/embed') || search.includes('v=');
+  }
 
   // Load initial settings
   chrome.storage?.sync?.get('fdm.settings', (res) => {
@@ -33,7 +43,7 @@
   });
 
   function removeAllOverlays() {
-    document.querySelectorAll('#af-video-downloader, .fdm-media-pill').forEach(el => el.remove());
+    document.querySelectorAll('#af-video-downloader, .fdm-media-pill, #fdm-sniff-bar').forEach(el => el.remove());
   }
 
   function cleanTitle() {
@@ -51,20 +61,40 @@
     highres: 4320, hd2880: 2880, hd2160: 2160, hd1440: 1440,
     hd1080: 1080, hd720: 720, large: 480, medium: 360, small: 240, tiny: 144
   };
-  const YT_FALLBACK = [2160, 1440, 1080, 720, 480, 360];
 
   let ytRoot = null, ytPanel = null, ytHead = null, ytList = null, ytOpen = false;
+  const qualitiesCache = new Map();
+
+  function getVideoId() {
+    try {
+      const u = new URL(location.href);
+      return u.searchParams.get('v') || u.pathname.split('/').pop() || location.href;
+    } catch (_) {
+      return location.href;
+    }
+  }
 
   function buildYouTubeOverlay() {
-    if (document.getElementById('af-video-downloader')) return;
+    const existing = document.getElementById('af-video-downloader');
+    if (existing) {
+      ytRoot = existing;
+      ytPanel = ytRoot.querySelector('#af-panel');
+      ytHead = ytRoot.querySelector('#af-head');
+      ytList = ytRoot.querySelector('#af-list');
+      return;
+    }
 
     ytRoot = document.createElement('section');
     ytRoot.id = 'af-video-downloader';
     ytRoot.innerHTML = `
-      <button id="af-toggle" title="Download with FDM" aria-label="Download with FDM">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914"/>
-          <path d="M12 6V16M12 16L8 12M12 16L16 12"/>
+      <button id="af-toggle" title="Download this video with FDM" aria-label="Download with FDM">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914" fill="#e50914" fill-opacity="0.25"/>
+          <path d="M12 7V15M12 15L9 12M12 15L15 12" stroke="#ffffff"/>
+        </svg>
+        <span class="af-toggle-text">Download</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M6 9l6 6 6-6"/>
         </svg>
         <i id="af-tbar" hidden></i>
       </button>
@@ -92,24 +122,30 @@
     ytPanel.addEventListener('click', (e) => e.stopPropagation());
 
     document.addEventListener('click', (e) => {
-      if (ytOpen && !ytRoot.contains(e.target)) closeYouTubePanel();
+      if (ytOpen && ytRoot && !ytRoot.contains(e.target)) closeYouTubePanel();
     });
 
     mountYouTubeOverlay();
   }
 
   function mountYouTubeOverlay() {
-    if (!snifferEnabled || !isYouTube()) return;
-    const player = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+    if (!snifferEnabled || !isYouTubeWatch()) return;
+    if (!ytRoot) buildYouTubeOverlay();
+
+    const player = document.querySelector('#movie_player') ||
+                   document.querySelector('.html5-video-player') ||
+                   document.querySelector('ytd-player') ||
+                   document.querySelector('#player');
+
     if (player && ytRoot && ytRoot.parentElement !== player) {
       player.appendChild(ytRoot);
     }
   }
 
-  function openYouTubePanel() {
+  async function openYouTubePanel() {
     ytOpen = true;
-    ytPanel.hidden = false;
-    renderYouTubeQualities();
+    if (ytPanel) ytPanel.hidden = false;
+    await renderYouTubeQualities();
   }
 
   function closeYouTubePanel() {
@@ -117,80 +153,94 @@
     if (ytPanel) ytPanel.hidden = true;
   }
 
-  function getYouTubeAvailableQualities() {
-    const heightsSet = new Set();
+  async function queryQualitiesOnce() {
+    const heightsMap = new Map(); // height -> { height, directUrl }
+    let audioDirectUrl = null;
 
-    // 1. Try to read from HTML5 movie player
+    try {
+      const res = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ type: 'pageQualities' }, (r) => {
+          resolve(chrome.runtime.lastError ? null : r);
+        });
+      });
+
+      if (res && res.ok) {
+        if (Array.isArray(res.levels)) {
+          res.levels.forEach(l => {
+            if (YT_LEVELS[l]) {
+              const h = YT_LEVELS[l];
+              if (!heightsMap.has(h)) heightsMap.set(h, { height: h });
+            }
+          });
+        }
+        if (Array.isArray(res.qualityData)) {
+          res.qualityData.forEach(d => {
+            const h = d.height || (d.quality ? YT_LEVELS[d.quality] : null);
+            if (h && !heightsMap.has(h)) heightsMap.set(h, { height: h });
+          });
+        }
+        if (Array.isArray(res.streamFormats)) {
+          res.streamFormats.forEach(f => {
+            let h = f.height;
+            if (!h && f.qualityLabel) {
+              const m = f.qualityLabel.match(/(\d+)p/i);
+              if (m) h = parseInt(m[1], 10);
+            }
+            if (h) {
+              const existing = heightsMap.get(h) || { height: h };
+              if (f.url && !existing.directUrl) existing.directUrl = f.url;
+              heightsMap.set(h, existing);
+            } else if (f.mimeType && f.mimeType.includes('audio') && f.url && !audioDirectUrl) {
+              audioDirectUrl = f.url;
+            }
+          });
+        }
+      }
+    } catch (_) {}
+
+    // Direct player inspect fallback
     try {
       const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
       if (player && typeof player.getAvailableQualityLevels === 'function') {
         const levels = player.getAvailableQualityLevels();
-        if (Array.isArray(levels) && levels.length > 0) {
+        if (Array.isArray(levels)) {
           levels.forEach(l => {
-            if (YT_LEVELS[l]) heightsSet.add(YT_LEVELS[l]);
+            if (YT_LEVELS[l]) {
+              const h = YT_LEVELS[l];
+              if (!heightsMap.has(h)) heightsMap.set(h, { height: h });
+            }
           });
         }
       }
-      if (player && typeof player.getAvailableQualityData === 'function') {
-        const data = player.getAvailableQualityData();
-        if (Array.isArray(data)) {
-          data.forEach(d => {
-            if (d.quality && YT_LEVELS[d.quality]) heightsSet.add(YT_LEVELS[d.quality]);
-            if (d.height) heightsSet.add(d.height);
-          });
-        }
+    } catch (_) {}
+
+    return { heightsMap, audioDirectUrl };
+  }
+
+  async function getYouTubeAvailableQualities() {
+    const videoId = getVideoId();
+    if (qualitiesCache.has(videoId)) {
+      return qualitiesCache.get(videoId);
+    }
+
+    let { heightsMap, audioDirectUrl } = await queryQualitiesOnce();
+
+    // If still empty (video player bootstrapping), retry
+    if (heightsMap.size === 0) {
+      for (let i = 0; i < 4; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        const res = await queryQualitiesOnce();
+        heightsMap = res.heightsMap;
+        if (!audioDirectUrl) audioDirectUrl = res.audioDirectUrl;
+        if (heightsMap.size > 0) break;
       }
-    } catch (e) {}
+    }
 
-    // 2. Parse from inline page scripts
-    try {
-      const scripts = document.querySelectorAll('script');
-      for (const s of scripts) {
-        const text = s.textContent || '';
-        if (text.includes('ytInitialPlayerResponse')) {
-          const idx = text.indexOf('ytInitialPlayerResponse');
-          const start = text.indexOf('{', idx);
-          if (start !== -1) {
-            let depth = 0;
-            let end = -1;
-            for (let i = start; i < text.length; i++) {
-              if (text[i] === '{') depth++;
-              else if (text[i] === '}') {
-                depth--;
-                if (depth === 0) {
-                  end = i + 1;
-                  break;
-                }
-              }
-            }
-            if (end !== -1) {
-              try {
-                const data = JSON.parse(text.substring(start, end));
-                const formats = [
-                  ...(data?.streamingData?.adaptiveFormats || []),
-                  ...(data?.streamingData?.formats || [])
-                ];
-                formats.forEach(f => {
-                  if (f.height) heightsSet.add(f.height);
-                  else if (f.qualityLabel) {
-                    const match = f.qualityLabel.match(/(\d+)p/i);
-                    if (match) heightsSet.add(parseInt(match[1], 10));
-                  }
-                });
-              } catch (err) {}
-            }
-          }
-          if (heightsSet.size > 0) break;
-        }
-      }
-    } catch (e) {}
+    let heights = [...heightsMap.keys()].filter(h => h >= 144 && h <= 4320).sort((a, b) => b - a);
 
-    // If heights detected, sort descending (ONLY show available qualities!)
-    let heights = [...heightsSet].sort((a, b) => b - a);
-
-    // If still empty (rare edge case where scripts are stripped), fallback to standard basic options
     if (!heights.length) {
       heights = [1080, 720, 480, 360];
+      heights.forEach(h => heightsMap.set(h, { height: h }));
     }
 
     const formats = heights.map(h => {
@@ -203,32 +253,30 @@
       else if (h >= 720) { label = '720p (HD)'; badge = '720p'; }
       else { label = `${h}p (SD)`; badge = `${h}p`; }
 
-      return {
-        kind: 'video',
-        label: label,
-        badge: badge,
-        height: h,
-        ext: '.mp4',
-      };
+      const item = heightsMap.get(h) || {};
+      return { kind: 'video', label: label, badge: badge, height: h, ext: '.mp4', directUrl: item.directUrl || null };
     });
 
-    formats.push({
-      kind: 'audio',
-      label: 'Audio · MP3',
-      badge: 'Audio',
-      ext: '.mp3',
-    });
+    formats.push({ kind: 'audio', label: 'Audio · MP3', badge: 'Audio', ext: '.mp3', directUrl: audioDirectUrl || null });
 
+    if (heightsMap.size > 0 && videoId) {
+      qualitiesCache.set(videoId, formats);
+    }
     return formats;
   }
 
-  function renderYouTubeQualities() {
+  async function renderYouTubeQualities() {
     if (!ytList) return;
+    const videoId = getVideoId();
+    if (!qualitiesCache.has(videoId)) {
+      ytList.innerHTML = '<div class="af-msg">Reading available qualities…</div>';
+    }
+    if (ytHead) ytHead.textContent = 'Select Quality';
+
+    const formats = await getYouTubeAvailableQualities();
+    if (!ytOpen || !ytList) return;
+
     ytList.innerHTML = '';
-    ytHead.textContent = 'Select Quality';
-
-    const formats = getYouTubeAvailableQualities();
-
     for (const fmt of formats) {
       const btn = document.createElement('button');
       btn.className = `af-item ${fmt.kind}`;
@@ -250,16 +298,14 @@
             const v = u.searchParams.get('v');
             if (v) targetUrl = `https://www.youtube.com/watch?v=${v}`;
           }
-        } catch (e) {}
+        } catch (_) {}
 
-        // Send to FDM Native Host via Background
+        // Send to FDM Native Host via Background (direct URL if available for instant connection)
         chrome.runtime.sendMessage({
           type: 'downloadMedia',
-          url: targetUrl,
+          url: fmt.directUrl || targetUrl,
           pageUrl: location.href,
           filename: filename,
-        }, (res) => {
-          console.log('[fdm] download requested:', res);
         });
       });
 
@@ -268,7 +314,7 @@
   }
 
   // ========================================================================
-  // 2. Universal Web Media Sniffer (HTML5 video/audio on any page)
+  // 2. Universal Web Media Sniffer (HTML5 video/audio on other pages)
   // ========================================================================
 
   const detectedMedia = new Map();
@@ -322,22 +368,22 @@
       e.preventDefault();
       e.stopPropagation();
 
-      const url = srcUrl || getMediaSrc(mediaEl) || location.href;
-      const filename = cleanTitle() + ext;
+      const title = cleanTitle();
+      const filename = `${title}${ext}`;
 
       pill.classList.add('fdm-pill-downloading');
-      pill.querySelector('.fdm-media-text').textContent = 'Opening in FDM…';
+      pill.querySelector('.fdm-media-text').textContent = 'Starting...';
 
       chrome.runtime.sendMessage({
         type: 'downloadMedia',
-        url: url,
-        filename: filename,
+        url: srcUrl,
         pageUrl: location.href,
+        filename: filename,
       }, () => {
         setTimeout(() => {
           pill.classList.remove('fdm-pill-downloading');
           pill.querySelector('.fdm-media-text').textContent = label;
-        }, 2500);
+        }, 2000);
       });
     });
 
@@ -345,8 +391,8 @@
     detectedMedia.set(mediaEl, pill);
     updatePos();
 
-    window.addEventListener('resize', updatePos, { passive: true });
     window.addEventListener('scroll', updatePos, { passive: true });
+    window.addEventListener('resize', updatePos, { passive: true });
   }
 
   function scanGeneralMedia() {
@@ -361,14 +407,30 @@
     });
   }
 
-  // ========================================================================
-  // Initialization & Dynamic Navigation Observer
-  // ========================================================================
+  // Lifecycle
+  let activeVideoId = getVideoId();
+
+  function checkVideoIdChange() {
+    if (!isYouTube()) return;
+    const currentVideoId = getVideoId();
+    if (isYouTubeWatch()) {
+      mountYouTubeOverlay();
+      if (currentVideoId && currentVideoId !== activeVideoId) {
+        activeVideoId = currentVideoId;
+        closeYouTubePanel();
+        setTimeout(() => {
+          getYouTubeAvailableQualities().catch(() => {});
+        }, 300);
+      }
+    }
+  }
 
   function init() {
     if (!snifferEnabled) return;
     if (isYouTube()) {
-      buildYouTubeOverlay();
+      if (isYouTubeWatch()) {
+        buildYouTubeOverlay();
+      }
     } else {
       scanGeneralMedia();
     }
@@ -383,22 +445,28 @@
   new MutationObserver(() => {
     if (!snifferEnabled) return;
     if (isYouTube()) {
-      mountYouTubeOverlay();
+      checkVideoIdChange();
     } else {
       scanGeneralMedia();
     }
   }).observe(document.documentElement, { childList: true, subtree: true });
 
   window.addEventListener('yt-navigate-finish', () => {
-    if (isYouTube()) {
-      closeYouTubePanel();
-      mountYouTubeOverlay();
-    }
+    checkVideoIdChange();
+    mountYouTubeOverlay();
+  });
+  window.addEventListener('yt-page-data-updated', () => {
+    checkVideoIdChange();
+    mountYouTubeOverlay();
+  });
+  window.addEventListener('popstate', () => {
+    checkVideoIdChange();
   });
 
   setInterval(() => {
     if (isYouTube() && snifferEnabled) {
+      checkVideoIdChange();
       mountYouTubeOverlay();
     }
-  }, 2000);
+  }, 1000);
 })();

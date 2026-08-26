@@ -210,7 +210,7 @@ async fn dispatch(
 
         Request::Add(add) => match new_download(*add) {
             Ok(new) => Reply::Added {
-                id: manager.add(new),
+                id: manager.add_paused(new),
             },
             Err(message) => Reply::error(ErrorKind::Invalid, message),
         },

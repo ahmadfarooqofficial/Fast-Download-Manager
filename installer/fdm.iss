@@ -172,11 +172,20 @@ Root: HKCU; Subkey: "Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\{
 Root: HKLM64; Subkey: "Software\Vivaldi\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 Root: HKLM64; Subkey: "Software\Chromium\NativeMessagingHosts\{#NativeHostName}"; ValueType: string; ValueData: "{app}\manifests\{#NativeHostName}.json"; Flags: uninsdeletekey; Check: HasNativeHost
 
-; ------------------------------------------------------- extension pre-install
-#if ExtensionPublished
-Root: HKLM32; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "update_url"; ValueData: "https://clients2.google.com/service/update2/crx"; Flags: uninsdeletekey
-Root: HKLM64; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "update_url"; ValueData: "https://clients2.google.com/service/update2/crx"; Flags: uninsdeletekey
-#endif
+; ------------------------------------------------------- extension auto-install (Policy & Registry)
+Root: HKLM; Subkey: "Software\Policies\Google\Chrome\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueData: "{#ChromeExtensionId};file:///{app}\extension\update.xml"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Policies\Google\Chrome\ExtensionInstallSources"; ValueType: string; ValueName: "1"; ValueData: "file:///*"; Flags: uninsdeletevalue
+
+Root: HKLM; Subkey: "Software\Policies\Microsoft\Edge\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueData: "{#ChromeExtensionId};file:///{app}\extension\update.xml"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Policies\Microsoft\Edge\ExtensionInstallSources"; ValueType: string; ValueName: "1"; ValueData: "file:///*"; Flags: uninsdeletevalue
+
+Root: HKLM; Subkey: "Software\Policies\BraveSoftware\Brave-Browser\ExtensionInstallForcelist"; ValueType: string; ValueName: "1"; ValueData: "{#ChromeExtensionId};file:///{app}\extension\update.xml"; Flags: uninsdeletevalue
+Root: HKLM; Subkey: "Software\Policies\BraveSoftware\Brave-Browser\ExtensionInstallSources"; ValueType: string; ValueName: "1"; ValueData: "file:///*"; Flags: uninsdeletevalue
+
+Root: HKLM32; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "path"; ValueData: "{app}\extension\fdm.crx"; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "path"; ValueData: "{app}\extension\fdm.crx"; Flags: uninsdeletekey
+Root: HKLM32; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "version"; ValueData: "{#AppVersion}"; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Google\Chrome\Extensions\{#ChromeExtensionId}"; ValueType: string; ValueName: "version"; ValueData: "{#AppVersion}"; Flags: uninsdeletekey
 
 ; ------------------------------------------------------------------- run-at-login
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FDM"; ValueData: """{app}\{#AppExeName}"" --background"; Flags: uninsdeletevalue; Tasks: startup; Check: HasDesktopApp
@@ -390,8 +399,35 @@ begin
     Log('WebView2 bootstrapper exited with code ' + IntToStr(ExitCode) + '.');
 end;
 
+procedure WriteExtensionUpdateXml;
+var
+  Lines: TArrayOfString;
+  CrxPath: String;
+  Dir: String;
+begin
+  Dir := ExpandConstant('{app}\extension');
+  if not DirExists(Dir) then
+    ForceDirectories(Dir);
+
+  CrxPath := 'file:///' + ExpandConstant('{app}\extension\fdm.crx');
+  StringChangeEx(CrxPath, '\', '/', True);
+
+  SetArrayLength(Lines, 6);
+  Lines[0] := '<?xml version=''1.0'' encoding=''UTF-8''?>';
+  Lines[1] := '<gupdate xmlns=''http://www.google.com/update2/response'' protocol=''2.0''>';
+  Lines[2] := '  <app appid=''{#ChromeExtensionId}''>';
+  Lines[3] := '    <updatecheck codebase=''' + CrxPath + ''' version=''{#AppVersion}'' />';
+  Lines[4] := '  </app>';
+  Lines[5] := '</gupdate>';
+
+  SaveStringsToUTF8FileWithoutBOM(Dir + '\update.xml', Lines, False);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
+  begin
     WriteNativeHostManifest;
+    WriteExtensionUpdateXml;
+  end;
 end;

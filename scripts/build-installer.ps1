@@ -298,6 +298,17 @@ if (Test-Path -LiteralPath (Join-Path $extSrc 'manifest.json')) {
     New-Item -ItemType Directory -Path $extDst -Force | Out-Null
     Copy-Item -Path (Join-Path $extSrc '*') -Destination $extDst -Recurse -Force `
         -Exclude @('node_modules', '*.map', '*.ts', 'tsconfig.json', 'package*.json')
+
+    # Copy fdm.crx for policy auto-install
+    $crxScript = Join-Path $PSScriptRoot 'pack-crx.ps1'
+    if (Test-Path $crxScript) {
+        & $crxScript | Out-Null
+    }
+    $crxSrc = Join-Path $RepoRoot 'extension.crx'
+    if (Test-Path $crxSrc) {
+        Copy-Item -LiteralPath $crxSrc -Destination (Join-Path $extDst 'fdm.crx') -Force
+    }
+
     $count = (Get-ChildItem -LiteralPath $extDst -Recurse -File).Count
     $included.Add("extension\ ($count files)")
 } else {

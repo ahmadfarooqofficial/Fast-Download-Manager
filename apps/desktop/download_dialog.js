@@ -154,9 +154,67 @@ const el = {
   btnClose: document.getElementById('dialog-close'),
 };
 
+let targetState = null;
+let currentDisplayed = {
+  downloaded: 0,
+  total: 0,
+  speed: 0,
+  pct: 0,
+};
+let lastAnimTime = performance.now();
+let animRunning = false;
+
+function startAnimLoop() {
+  if (animRunning) return;
+  animRunning = true;
+  lastAnimTime = performance.now();
+
+  function tick(now) {
+    const dt = Math.min(0.1, (now - lastAnimTime) / 1000);
+    lastAnimTime = now;
+
+    if (targetState && targetState.status === 'downloading') {
+      const total = targetState.total || 0;
+      const targetDownloaded = targetState.downloaded || 0;
+      const targetSpeed = targetState.speed_bps || targetState.speedBps || 0;
+
+      // Smooth exponential lerp toward target downloaded bytes
+      if (currentDisplayed.downloaded === 0 || Math.abs(currentDisplayed.downloaded - targetDownloaded) > 30 * 1024 * 1024) {
+        currentDisplayed.downloaded = targetDownloaded;
+      } else {
+        const lerpFactor = Math.min(1.0, dt * 16);
+        currentDisplayed.downloaded += (targetDownloaded - currentDisplayed.downloaded) * lerpFactor;
+      }
+
+      // Smooth exponential lerp for speed
+      const lerpSpeed = Math.min(1.0, dt * 10);
+      currentDisplayed.speed += (targetSpeed - currentDisplayed.speed) * lerpSpeed;
+
+      if (total > 0) {
+        currentDisplayed.pct = Math.min(100, Math.max(0, (currentDisplayed.downloaded / total) * 100));
+        const pctFormatted = currentDisplayed.pct.toFixed(1);
+        el.progressFill.style.width = `${currentDisplayed.pct}%`;
+        el.progressPct.textContent = `${pctFormatted}%`;
+        el.size.textContent = `${formatBytes(currentDisplayed.downloaded)} / ${formatBytes(total)} (${pctFormatted}%)`;
+      } else {
+        el.progressFill.style.width = '100%';
+        el.size.textContent = `${formatBytes(currentDisplayed.downloaded)} (calculating total...)`;
+      }
+
+      el.speed.textContent = formatSpeed(currentDisplayed.speed);
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+}
+
 function render(d) {
   if (!d) return;
   currentDownload = d;
+  targetState = d;
+  startAnimLoop();
 
   const total = d.total || 0;
   const downloaded = d.downloaded || 0;
@@ -184,8 +242,13 @@ function render(d) {
   if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Video').toUpperCase();
   if (el.promptPath) el.promptPath.value = d.path || 'Downloads folder';
 
+  // If user started or download already started receiving bytes
+  if (userStarted || (d.downloaded && d.downloaded > 0) || d.status === 'downloading') {
+    userStarted = true;
+  }
+
   // If user hasn't clicked Start Download yet and the download is in initial state
-  if (!userStarted && (d.downloaded === 0 || d.status === 'starting' || d.status === 'connecting' || d.status === 'queued')) {
+  if (!userStarted && (d.downloaded === 0 || d.status === 'starting' || d.status === 'connecting' || d.status === 'queued' || d.status === 'paused')) {
     el.viewPrompt.style.display = 'flex';
     el.viewActive.style.display = 'none';
     el.viewCompleted.style.display = 'none';
@@ -208,13 +271,11 @@ function render(d) {
   el.url.textContent = d.url || '—';
   el.url.title = d.url || '';
 
-  // Progress bar fill & labels
-  el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
-  el.progressPct.textContent = `${pctFormatted}%`;
   const conns = d.active_connections || d.activeConnections || d.segments || 32;
   el.progressSegs.textContent = `${conns} parallel streams`;
 
   if (d.status === 'paused') {
+    el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
     el.progressFill.style.background = 'var(--fdm-warning)';
     el.progressFill.classList.remove('shimmer');
     el.status.textContent = 'Paused';
@@ -223,6 +284,7 @@ function render(d) {
     el.btnPause.textContent = 'Resume';
     el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'failed') {
+    el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
     el.progressFill.style.background = 'var(--fdm-red)';
     el.progressFill.classList.remove('shimmer');
     el.status.textContent = d.error ? `Failed: ${d.error}` : 'Failed';
@@ -247,16 +309,17 @@ function render(d) {
     el.progressFill.classList.remove('shimmer');
     el.status.textContent = `Downloading (${conns} connections)`;
     el.status.style.color = 'var(--fdm-info)';
-    el.speed.textContent = formatSpeed(d.speed_bps || d.speedBps);
     el.eta.textContent = formatTime(d.eta_secs || d.etaSecs);
     el.btnPause.textContent = 'Pause';
     el.btnPause.className = 'btn btn-secondary';
   }
 
   // Size details
-  if (total > 0) {
+  if (total > 0 && d.status !== 'downloading') {
     el.size.textContent = `${formatBytes(downloaded)} / ${formatBytes(total)} (${pctFormatted}%)`;
-  } else {
+    el.progressPct.textContent = `${pctFormatted}%`;
+    el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  } else if (d.status !== 'downloading') {
     el.size.textContent = `${formatBytes(downloaded)} (calculating total...)`;
   }
 
@@ -282,6 +345,15 @@ el.btnClose?.addEventListener('click', () => {
 // Prompt Action Buttons
 el.promptBtnStart?.addEventListener('click', async () => {
   userStarted = true;
+  el.viewPrompt.style.display = 'none';
+  el.viewActive.style.display = 'flex';
+  el.viewCompleted.style.display = 'none';
+  el.titleText.textContent = 'Download Status';
+  el.status.textContent = 'Connecting to server…';
+  el.status.style.color = 'var(--fdm-info)';
+  el.progressFill.style.width = '100%';
+  el.progressFill.classList.add('shimmer');
+
   if (currentDownload) {
     render(currentDownload);
     if (currentDownload.status === 'paused') {

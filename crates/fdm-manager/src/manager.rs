@@ -280,6 +280,33 @@ impl Manager {
         id
     }
 
+    /// Queue a download in paused state (for user confirmation in dialog) and return its id.
+    pub fn add_paused(&self, new: NewDownload) -> DownloadId {
+        let filename = new
+            .filename
+            .clone()
+            .unwrap_or_else(|| filename_from_url(&new.url));
+
+        let (id, snapshot) = {
+            let mut reg = self.reg.lock().unwrap();
+            let id = reg.next_id;
+            reg.next_id += 1;
+
+            let mut entry = DownloadEntry::new(id, new.url.as_str(), filename);
+            entry.status = Status::Paused;
+            let snapshot = entry.clone();
+            reg.entries.insert(id, entry);
+            reg.runtime
+                .insert(id, Runtime::new(new.headers.clone(), new.target_dir.clone()));
+            reg.order.push(id);
+            (id, snapshot)
+        };
+
+        let _ = self.events.send(Event::Added(snapshot));
+        self.persist();
+        id
+    }
+
     /// Stop, keep the partial data, stay resumable.
     pub fn pause(&self, id: DownloadId) -> Result<()> {
         let (status, snapshot) = {
@@ -578,7 +605,7 @@ impl Manager {
                 Err(_) => return, // semaphore closed: the app is shutting down
             };
 
-            let (mut req, cancel) = {
+            let (req, cancel) = {
                 let mut guard = reg.lock().unwrap();
                 if !guard.is_current(id, generation) {
                     return;
@@ -995,7 +1022,7 @@ async fn download_video_platform(
 
     let mut format_arg = "bestvideo+bestaudio/best".to_string();
     if is_audio {
-        format_arg = "bestaudio[ext=m4a]/bestaudio/best[ext=mp3]/best/b".to_string();
+        format_arg = "bestaudio/best".to_string();
     } else if let Some(ref name) = filename {
         for res in [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144] {
             if name.contains(&format!("{}p", res))
@@ -1005,7 +1032,7 @@ async fn download_video_platform(
                 || (res == 4320 && (name.contains("8K") || name.contains("8k")))
             {
                 format_arg = format!(
-                    "bestvideo[height={res}]+bestaudio/bestvideo[height<={res}]+bestaudio/best[height<={res}]/best",
+                    "bestvideo[height={res}]+bestaudio/best[height={res}]/bestvideo[height<={res}]+bestaudio/best[height<={res}]",
                 );
                 break;
             }
@@ -1044,44 +1071,67 @@ async fn download_video_platform(
     let outcome = tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
         let mut cmd = std::process::Command::new(ytdlp_path);
         cmd.env("PYTHONUNBUFFERED", "1");
-        cmd.args(&[
-            "--newline",
-            "--progress-delta",
-            "0.05",
-            "--progress-template",
-            "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s",
-            "--no-playlist",
-            "--no-warnings",
-            "--merge-output-format",
-            "mp4",
-            "--retries",
-            "10",
-            "--fragment-retries",
-            "10",
-            "--file-access-retries",
-            "5",
-            "--retry-sleep",
-            "1",
-            "--socket-timeout",
-            "15",
-            "--no-check-certificates",
-            "-N",
-            &max_conns.to_string(),
-            "-f",
-            &format_arg,
-            "-o",
-            &output_template,
-        ]);
+        
+        let mut args: Vec<String> = vec![
+            "--newline".into(),
+            "--progress-template".into(),
+            "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s".into(),
+            "--no-playlist".into(),
+            "--no-warnings".into(),
+            "--no-check-certificates".into(),
+            "--extractor-args".into(),
+            "youtube:skip=hls,translated_subs".into(),
+            "--retries".into(),
+            "5".into(),
+            "--fragment-retries".into(),
+            "5".into(),
+            "--file-access-retries".into(),
+            "3".into(),
+            "--socket-timeout".into(),
+            "10".into(),
+            "-N".into(),
+            max_conns.clamp(4, 32).to_string(),
+            "--concurrent-fragments".into(),
+            "16".into(),
+        ];
 
-        if let Some(deno_path) = deno {
-            cmd.arg("--js-runtimes").arg(format!("deno:{}", deno_path.display()));
+        if let Some(ref deno_path) = deno {
+            args.push("--js-runtimes".into());
+            args.push(format!("deno:{}", deno_path.display()));
         }
-        if let Some(ffmpeg_path) = ffmpeg {
+
+        if let Some(ref ffmpeg_path) = ffmpeg {
             if let Some(parent) = ffmpeg_path.parent() {
-                cmd.arg("--ffmpeg-location").arg(parent);
+                args.push("--ffmpeg-location".into());
+                args.push(parent.to_string_lossy().into_owned());
             }
         }
-        cmd.arg(&url_owned);
+
+        if is_audio {
+            args.push("-x".into());
+            args.push("--audio-format".into());
+            args.push("mp3".into());
+            args.push("--audio-quality".into());
+            args.push("0".into());
+        } else {
+            args.push("--merge-output-format".into());
+            args.push("mp4".into());
+        }
+
+        args.push("-f".into());
+        args.push(format_arg.clone());
+        args.push("-o".into());
+        args.push(output_template);
+
+        if let Some(ffmpeg_path) = ffmpeg {
+            if let Some(parent) = ffmpeg_path.parent() {
+                args.push("--ffmpeg-location".into());
+                args.push(parent.display().to_string());
+            }
+        }
+
+        args.push(url_owned);
+        cmd.args(&args);
 
         cmd.stdout(std::process::Stdio::piped());
         cmd.stderr(std::process::Stdio::piped());
@@ -1109,6 +1159,9 @@ async fn download_video_platform(
         use std::io::{BufRead, BufReader};
         let reader = BufReader::new(stdout);
         let mut last_progress = std::time::Instant::now();
+        let mut last_sample_time = std::time::Instant::now();
+        let mut last_sample_bytes: u64 = 0;
+        let mut smoothed_speed: f64 = 0.0;
         let mut track_index: u32 = 0;
         let mut track1_downloaded: u64 = 0;
         let mut track1_total: u64 = 0;
@@ -1121,8 +1174,8 @@ async fn download_video_platform(
                 return Err(fdm_core::Error::Cancelled);
             }
 
-            if line.starts_with("FDM_PROG:") {
-                let raw = line.trim_start_matches("FDM_PROG:").trim();
+            if let Some(idx) = line.find("FDM_PROG:") {
+                let raw = line[idx + "FDM_PROG:".len()..].trim();
                 let parts: Vec<&str> = raw.split(':').collect();
                 if parts.len() >= 4 {
                     let curr_downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
@@ -1154,6 +1207,28 @@ async fn download_video_platform(
                         (curr_downloaded, curr_total)
                     };
 
+                    let parsed_speed = parse_speed_str(speed_str);
+                    let dt = last_sample_time.elapsed().as_secs_f64();
+                    if dt >= 0.08 {
+                        let byte_delta = display_downloaded.saturating_sub(last_sample_bytes) as f64;
+                        let measured_speed = byte_delta / dt;
+                        smoothed_speed = if measured_speed > 0.0 {
+                            if smoothed_speed > 0.0 {
+                                0.5 * smoothed_speed + 0.5 * measured_speed
+                            } else {
+                                measured_speed
+                            }
+                        } else if parsed_speed > 0.0 {
+                            parsed_speed
+                        } else {
+                            smoothed_speed * 0.95
+                        };
+                        last_sample_time = std::time::Instant::now();
+                        last_sample_bytes = display_downloaded;
+                    } else if parsed_speed > 0.0 && smoothed_speed == 0.0 {
+                        smoothed_speed = parsed_speed;
+                    }
+
                     if last_progress.elapsed() >= std::time::Duration::from_millis(16) {
                         last_progress = std::time::Instant::now();
                         let mut guard = reg_c.lock().unwrap();
@@ -1163,7 +1238,7 @@ async fn download_video_platform(
                                 if display_total.is_some() {
                                     entry.total = display_total;
                                 }
-                                entry.speed_bps = parse_speed_str(speed_str);
+                                entry.speed_bps = smoothed_speed;
                                 entry.eta_secs = parse_eta_str(eta_str);
                                 entry.active_connections = max_conns;
                                 let snapshot = entry.clone();

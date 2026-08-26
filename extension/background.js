@@ -729,12 +729,131 @@ chrome.runtime.onStartup.addListener(async () => {
 // -------------------------------------------------------- Media Sniffer Comms
 
 const tabMediaStreams = new Map();
+const tabVideoDirectUrls = new Map();
+
+chrome.webRequest?.onBeforeRequest?.addListener(
+  (details) => {
+    if (!details.url || !details.tabId || details.tabId < 0) return;
+    try {
+      if (details.url.includes('googlevideo.com/videoplayback')) {
+        const u = new URL(details.url);
+        const itag = u.searchParams.get('itag');
+        if (itag) {
+          u.searchParams.delete('range');
+          u.searchParams.delete('rn');
+          u.searchParams.delete('rbuf');
+          const cleanStreamUrl = u.toString();
+
+          if (!tabVideoDirectUrls.has(details.tabId)) {
+            tabVideoDirectUrls.set(details.tabId, new Map());
+          }
+          tabVideoDirectUrls.get(details.tabId).set(parseInt(itag, 10), cleanStreamUrl);
+        }
+      }
+    } catch (_) {}
+  },
+  { urls: ['*://*.googlevideo.com/videoplayback*'] }
+);
+
+function readPlayer() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const expectedVideoId = urlParams.get('v');
+
+    const player = document.querySelector('#movie_player') || document.querySelector('.html5-video-player');
+    const data = (player && typeof player.getVideoData === 'function') ? (player.getVideoData() || {}) : {};
+    
+    let levels = [];
+    if (player && typeof player.getAvailableQualityLevels === 'function') {
+      levels = player.getAvailableQualityLevels() || [];
+    }
+
+    let qualityData = [];
+    if (player && typeof player.getAvailableQualityData === 'function') {
+      qualityData = player.getAvailableQualityData() || [];
+    }
+
+    // Read current video's streamingData and player response
+    let streamFormats = [];
+    try {
+      let resp = null;
+      if (player && typeof player.getPlayerResponse === 'function') {
+        resp = player.getPlayerResponse();
+      }
+      if (!resp || (expectedVideoId && resp.videoDetails?.videoId && resp.videoDetails.videoId !== expectedVideoId)) {
+        const watchFlexy = document.querySelector('ytd-watch-flexy');
+        if (watchFlexy && watchFlexy.playerData) {
+          resp = watchFlexy.playerData;
+        }
+      }
+      if (!resp && window.ytInitialPlayerResponse) {
+        if (!expectedVideoId || window.ytInitialPlayerResponse.videoDetails?.videoId === expectedVideoId) {
+          resp = window.ytInitialPlayerResponse;
+        }
+      }
+
+      if (resp && resp.streamingData) {
+        streamFormats = [
+          ...(resp.streamingData.adaptiveFormats || []),
+          ...(resp.streamingData.formats || []),
+        ].map(f => ({
+          itag: f.itag,
+          height: f.height,
+          quality: f.quality,
+          qualityLabel: f.qualityLabel,
+          mimeType: f.mimeType,
+          bitrate: f.bitrate,
+          url: f.url || '',
+        }));
+      }
+    } catch (_) {}
+
+    return {
+      levels: levels || [],
+      qualityData: qualityData || [],
+      streamFormats: streamFormats || [],
+      duration: Math.round((player && typeof player.getDuration === 'function') ? player.getDuration() : 0),
+      title: data.title || (document.title ? document.title.replace(/ - YouTube$/, '') : '') || '',
+      author: data.author || '',
+      videoId: data.video_id || expectedVideoId || '',
+    };
+  } catch (err) {
+    return { error: err.message, levels: [] };
+  }
+}
 
 chrome.tabs?.onRemoved?.addListener((tabId) => {
   tabMediaStreams.delete(tabId);
+  tabVideoDirectUrls.delete(tabId);
 });
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'pageQualities') {
+    const tabId = sender.tab?.id ?? msg.tabId;
+    if (!tabId) {
+      sendResponse({ ok: false, error: 'No tabId' });
+      return true;
+    }
+    chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: readPlayer })
+      .then(([injection]) => {
+        const res = injection?.result || { levels: [] };
+        const directMap = tabVideoDirectUrls.get(tabId);
+        if (directMap && Array.isArray(res.streamFormats)) {
+          res.streamFormats = res.streamFormats.map(f => {
+            if (!f.url && directMap.has(f.itag)) {
+              return { ...f, url: directMap.get(f.itag) };
+            }
+            return f;
+          });
+        }
+        sendResponse({ ok: true, ...res });
+      })
+      .catch((error) => {
+        sendResponse({ ok: false, error: error.message, levels: [] });
+      });
+    return true;
+  }
+
   if (msg?.type === 'getTabMediaStreams') {
     const tabId = sender.tab?.id;
     sendResponse({ streams: tabId ? tabMediaStreams.get(tabId) || [] : [] });

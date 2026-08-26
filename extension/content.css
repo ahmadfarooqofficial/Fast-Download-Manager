@@ -67,52 +67,61 @@
 
 /* ---------------------------------------------------------------- YouTube Overlay */
 #af-video-downloader {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 2147483647;
-  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  z-index: 2147483647 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
 #af-toggle {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, .25);
-  border-radius: 8px;
-  color: #fff;
-  background: rgba(14, 17, 23, 0.9);
-  backdrop-filter: blur(8px);
-  cursor: pointer;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, .5), 0 0 10px rgba(229, 9, 20, 0.3);
-  transition: background .15s ease, transform .15s ease;
-  overflow: hidden;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  height: 32px !important;
+  border: 1px solid rgba(229, 9, 20, 0.7) !important;
+  border-radius: 6px !important;
+  color: #ffffff !important;
+  background: rgba(14, 17, 23, 0.94) !important;
+  backdrop-filter: blur(10px) !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(229, 9, 20, 0.4) !important;
+  transition: all .2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  user-select: none !important;
+  pointer-events: auto !important;
 }
 
 #af-toggle:hover {
-  background: #e50914;
-  border-color: #ff4d4d;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(229, 9, 20, 0.6);
+  background: #e50914 !important;
+  border-color: #ff4d4d !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 6px 22px rgba(229, 9, 20, 0.7) !important;
 }
 
-#af-toggle img {
-  width: 18px;
-  height: 18px;
-  filter: brightness(0) invert(1);
+.af-toggle-text {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5) !important;
+  white-space: nowrap !important;
 }
 
 #af-tbar {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 0;
-  height: 3px;
-  background: #e50914;
-  transition: width .25s ease;
+  position: absolute !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  width: 0 !important;
+  height: 3px !important;
+  background: #e50914 !important;
+  transition: width .25s ease !important;
 }
 
 #af-panel {

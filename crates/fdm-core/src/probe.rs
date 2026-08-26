@@ -60,7 +60,7 @@ pub async fn probe(client: &Client, url: &Url, extra: &HeaderMap) -> Result<Remo
 
         let response = match tokio::time::timeout(std::time::Duration::from_secs(6), probe_fut).await {
             Ok(Ok(res)) => res,
-            Ok(Err(e)) if attempt < 3 => {
+            Ok(Err(_e)) if attempt < 3 => {
                 tokio::time::sleep(std::time::Duration::from_millis(500 * attempt)).await;
                 continue;
             }

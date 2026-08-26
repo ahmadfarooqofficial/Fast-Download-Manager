@@ -25,7 +25,7 @@ pub fn add_download(
     let parsed_url = Url::parse(&url).map_err(|e| e.to_string())?;
     let header_map = fdm_core::sanitize_headers(&headers);
     let new_download = NewDownload::new(parsed_url).with_headers(header_map);
-    Ok(manager.add(new_download))
+    Ok(manager.add_paused(new_download))
 }
 
 #[tauri::command]

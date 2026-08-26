@@ -112,6 +112,118 @@ function updateCategoryCounts() {
 const listEl = document.getElementById('download-list');
 const emptyEl = document.getElementById('empty-state');
 
+function getRowHtml(d) {
+  const total = d.total || 0;
+  const downloaded = d.downloaded || 0;
+  const percent = total > 0 ? ((downloaded / total) * 100).toFixed(1) : 0;
+  const status = (d.status || 'queued').toLowerCase();
+  const segments = d.segments || 1;
+  const activeConns = d.active_connections || 0;
+
+  let statusText = status.charAt(0).toUpperCase() + status.slice(1);
+  if (status === 'downloading') {
+    statusText = `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
+  } else if (status === 'failed') {
+    statusText = d.error ? `Failed: ${escapeHtml(d.error)}` : 'Failed';
+  }
+
+  const actions = [];
+  if (['queued', 'connecting', 'downloading'].includes(status)) {
+    actions.push(`<button onclick="window.fdm.pause(${d.id})">Pause</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.cancel(${d.id})">Cancel</button>`);
+  } else if (['paused', 'failed', 'cancelled'].includes(status)) {
+    actions.push(`<button onclick="window.fdm.resume(${d.id})">Resume</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, true)">Delete</button>`);
+  } else if (status === 'completed') {
+    if (d.path) {
+      actions.push(`<button onclick="window.fdm.openFile('${escapeHtml(d.path)}')">Open File</button>`);
+      actions.push(`<button onclick="window.fdm.openFolder('${escapeHtml(d.path)}')">Open Folder</button>`);
+    }
+    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, false)">Remove</button>`);
+  }
+
+  return `
+    <div class="row-top">
+      <div class="file-info">
+        <div class="file-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+        </div>
+        <div class="file-meta">
+          <div class="filename" title="${escapeHtml(d.filename)}">${escapeHtml(d.filename || 'Resolving name...')}</div>
+          <div class="file-url" title="${escapeHtml(d.url)}">${escapeHtml(d.url)}</div>
+        </div>
+      </div>
+      <div class="row-actions">
+        ${actions.join('')}
+      </div>
+    </div>
+
+    <div class="fdm-progress" data-state="${status}" style="--fdm-value: ${percent}; --fdm-segments: ${segments};">
+      <div class="fdm-progress__fill"></div>
+    </div>
+
+    <div class="row-bottom">
+      <div class="status-badge">
+        <span class="status-dot ${status}"></span>
+        <span class="status-label">${statusText}</span>
+      </div>
+      <div class="row-stats fdm-num">
+        <span class="stat-pct">${percent}%</span>
+        <span class="stat-bytes">${formatBytes(downloaded)} of ${total > 0 ? formatBytes(total) : 'Unknown'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function updateRowInPlace(rowEl, d) {
+  const total = d.total || 0;
+  const downloaded = d.downloaded || 0;
+  const percent = total > 0 ? ((downloaded / total) * 100).toFixed(1) : 0;
+  const status = (d.status || 'queued').toLowerCase();
+  const segments = d.segments || 1;
+  const activeConns = d.active_connections || 0;
+
+  const currentStatus = rowEl.dataset.status;
+  if (currentStatus !== status) {
+    rowEl.dataset.status = status;
+    rowEl.innerHTML = getRowHtml(d);
+    return;
+  }
+
+  const prog = rowEl.querySelector('.fdm-progress');
+  if (prog) {
+    prog.style.setProperty('--fdm-value', String(percent));
+    prog.style.setProperty('--fdm-segments', String(segments));
+    prog.dataset.state = status;
+  }
+
+  const statusLabel = rowEl.querySelector('.status-label');
+  if (statusLabel) {
+    let statusText = status.charAt(0).toUpperCase() + status.slice(1);
+    if (status === 'downloading') {
+      statusText = `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
+    } else if (status === 'failed') {
+      statusText = d.error ? `Failed: ${escapeHtml(d.error)}` : 'Failed';
+    }
+    statusLabel.textContent = statusText;
+  }
+
+  const pctEl = rowEl.querySelector('.stat-pct');
+  if (pctEl) pctEl.textContent = `${percent}%`;
+
+  const bytesEl = rowEl.querySelector('.stat-bytes');
+  if (bytesEl) bytesEl.textContent = `${formatBytes(downloaded)} of ${total > 0 ? formatBytes(total) : 'Unknown'}`;
+
+  const fnEl = rowEl.querySelector('.filename');
+  if (fnEl && d.filename && fnEl.textContent !== d.filename) {
+    fnEl.textContent = d.filename;
+    fnEl.title = d.filename;
+  }
+}
+
 function render() {
   updateCategoryCounts();
 
@@ -129,79 +241,36 @@ function render() {
   if (filtered.length === 0) {
     listEl.style.display = 'none';
     emptyEl.classList.add('visible');
-  } else {
-    listEl.style.display = 'flex';
-    emptyEl.classList.remove('visible');
+    listEl.innerHTML = '';
+    return;
   }
 
-  listEl.innerHTML = filtered.map(d => {
-    const total = d.total || 0;
-    const downloaded = d.downloaded || 0;
-    const percent = total > 0 ? ((downloaded / total) * 100).toFixed(1) : 0;
-    const status = (d.status || 'queued').toLowerCase();
-    const segments = d.segments || 1;
-    const activeConns = d.active_connections || 0;
+  listEl.style.display = 'flex';
+  emptyEl.classList.remove('visible');
 
-    let statusText = status.charAt(0).toUpperCase() + status.slice(1);
-    if (status === 'downloading') {
-      statusText = `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
-    } else if (status === 'failed') {
-      statusText = d.error ? `Failed: ${escapeHtml(d.error)}` : 'Failed';
+  // Fast in-place DOM sync
+  const existingRows = new Map();
+  listEl.querySelectorAll('.download-row').forEach(el => {
+    const id = parseInt(el.dataset.id, 10);
+    if (!isNaN(id)) existingRows.set(id, el);
+  });
+
+  const currentIds = Array.from(existingRows.keys());
+  const filteredIds = filtered.map(d => d.id);
+  const sameIds = currentIds.length === filteredIds.length && currentIds.every((id, idx) => id === filteredIds[idx]);
+
+  if (sameIds) {
+    for (const d of filtered) {
+      const rowEl = existingRows.get(d.id);
+      if (rowEl) updateRowInPlace(rowEl, d);
     }
-
-    // Action buttons
-    const actions = [];
-    if (['queued', 'connecting', 'downloading'].includes(status)) {
-      actions.push(`<button onclick="window.fdm.pause(${d.id})">Pause</button>`);
-      actions.push(`<button class="btn-danger" onclick="window.fdm.cancel(${d.id})">Cancel</button>`);
-    } else if (['paused', 'failed', 'cancelled'].includes(status)) {
-      actions.push(`<button onclick="window.fdm.resume(${d.id})">Resume</button>`);
-      actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, true)">Delete</button>`);
-    } else if (status === 'completed') {
-      if (d.path) {
-        actions.push(`<button onclick="window.fdm.openFile('${escapeHtml(d.path)}')">Open File</button>`);
-        actions.push(`<button onclick="window.fdm.openFolder('${escapeHtml(d.path)}')">Open Folder</button>`);
-      }
-      actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, false)">Remove</button>`);
-    }
-
-    return `
-      <div class="download-row" data-id="${d.id}" ondblclick="window.fdm.openDialog(${d.id})" title="Double click to open download window">
-        <div class="row-top">
-          <div class="file-info">
-            <div class="file-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                <polyline points="13 2 13 9 20 9"></polyline>
-              </svg>
-            </div>
-            <div class="file-meta">
-              <div class="filename" title="${escapeHtml(d.filename)}">${escapeHtml(d.filename || 'Resolving name...')}</div>
-              <div class="file-url" title="${escapeHtml(d.url)}">${escapeHtml(d.url)}</div>
-            </div>
-          </div>
-          <div class="row-actions">
-            ${actions.join('')}
-          </div>
-        </div>
-
-        <div class="fdm-progress" data-state="${status}" style="--fdm-value: ${percent}; --fdm-segments: ${segments};">
-          <div class="fdm-progress__fill"></div>
-        </div>
-
-        <div class="row-bottom">
-          <div class="status-badge">
-            <span class="status-dot ${status}"></span>
-            <span class="status-label">${statusText}</span>
-          </div>
-          <div class="row-stats fdm-num">
-            <span>${percent}%</span>
-            <span>${formatBytes(downloaded)} of ${total > 0 ? formatBytes(total) : 'Unknown'}</span>
-          </div>
-        </div>
+  } else {
+    listEl.innerHTML = filtered.map(d => `
+      <div class="download-row" data-id="${d.id}" data-status="${(d.status || 'queued').toLowerCase()}" ondblclick="window.fdm.openDialog(${d.id})" title="Double click to open download window">
+        ${getRowHtml(d)}
       </div>
-    `;
-  }).join('');
+    `).join('');
+  }
 }
 
 // ------------------------------------------------------------- Global Handlers
