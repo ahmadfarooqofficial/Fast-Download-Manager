@@ -9,7 +9,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/ahmadfarooqofficial/Fast-Download-Manager?style=flat-square&color=e50914)](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=flat-square)](https://github.com/ahmadfarooq/fdm)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7?style=flat-square&logo=windows)](https://github.com/ahmadfarooq/fdm)
 [![Rust](https://img.shields.io/badge/Engine-Rust%201.80+-orange?style=flat-square&logo=rust)](https://www.rust-lang.org/)
 [![Tauri](https://img.shields.io/badge/GUI-Tauri%202.0-24C8D8?style=flat-square&logo=tauri)](https://tauri.app/)
@@ -41,7 +41,7 @@
 
 ### Windows One-Click Installer (Recommended)
 
-1. Download **`FDM-Setup-0.1.5.exe`** from [Latest Releases](https://github.com/ahmadfarooq/fdm/releases).
+1. Download **`FDM-Setup-0.1.5.exe`** from [Latest Releases](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases).
 2. Run the installer (Click **Yes** when Windows UAC prompts for admin).
 3. Open your browser (Chrome / Edge / Brave). The extension is automatically registered and ready.
 
