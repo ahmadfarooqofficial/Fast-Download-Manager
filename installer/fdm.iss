@@ -138,6 +138,7 @@ Source: "{#StagingDir}\extension\*"; DestDir: "{app}\extension"; Flags: ignoreve
 ; --- Video extractor & JS runtime tools (yt-dlp, deno)
 Source: "{#StagingDir}\tools\*"; DestDir: "{app}\tools"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
+Source: "assets\fdm.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreversion skipifsourcedoesntexist
 
@@ -146,9 +147,9 @@ Source: "..\README.md"; DestDir: "{app}"; DestName: "README.md"; Flags: ignoreve
 Name: "{app}\manifests"
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Check: HasDesktopApp
-Name: "{group}\Uninstall {#AppShortName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppShortName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon; Check: HasDesktopApp
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\fdm.ico"; Check: HasDesktopApp
+Name: "{group}\Uninstall {#AppShortName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\fdm.ico"
+Name: "{autodesktop}\{#AppShortName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\fdm.ico"; Tasks: desktopicon; Check: HasDesktopApp
 
 [Registry]
 ; ---------------------------------------------------------------- uninstall key

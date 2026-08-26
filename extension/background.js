@@ -731,6 +731,24 @@ chrome.runtime.onStartup.addListener(async () => {
 const tabMediaStreams = new Map();
 const tabVideoDirectUrls = new Map();
 
+// ── YouTube itag → height lookup (comprehensive: H.264, VP9, AV1, combined) ──
+const ITAG_HEIGHT = {
+  // H.264 (AVC)
+  160: 144, 133: 240, 134: 360, 135: 480, 136: 720, 298: 720,
+  137: 1080, 299: 1080, 264: 1440, 266: 2160, 138: 2160,
+  // VP9
+  278: 144, 242: 240, 243: 360, 244: 480, 245: 480, 246: 480,
+  247: 720, 302: 720, 248: 1080, 303: 1080, 271: 1440, 308: 1440,
+  313: 2160, 315: 2160, 272: 4320,
+  // AV1
+  394: 144, 395: 240, 396: 360, 397: 480, 398: 720, 399: 1080,
+  400: 1440, 401: 2160, 571: 4320,
+  // Combined video+audio
+  18: 360, 22: 720,
+};
+// Prefer H.264 for best mp4 compatibility (no re-mux needed)
+const H264_ITAGS = new Set([160,133,134,135,136,298,137,299,264,266,138,18,22]);
+
 chrome.webRequest?.onBeforeRequest?.addListener(
   (details) => {
     if (!details.url || !details.tabId || details.tabId < 0) return;
@@ -754,6 +772,28 @@ chrome.webRequest?.onBeforeRequest?.addListener(
   },
   { urls: ['*://*.googlevideo.com/videoplayback*'] }
 );
+
+// Find the best sniffed direct CDN URL for a given height from the tab's captured streams
+function findDirectUrlForHeight(tabId, requestedHeight) {
+  const directMap = tabVideoDirectUrls.get(tabId);
+  if (!directMap || directMap.size === 0) return null;
+
+  let bestUrl = null;
+  let bestIsH264 = false;
+
+  for (const [itag, url] of directMap.entries()) {
+    const h = ITAG_HEIGHT[itag];
+    if (h === requestedHeight) {
+      const isH264 = H264_ITAGS.has(itag);
+      // Prefer H.264 over VP9/AV1 for direct mp4 download
+      if (!bestUrl || (isH264 && !bestIsH264)) {
+        bestUrl = url;
+        bestIsH264 = isH264;
+      }
+    }
+  }
+  return bestUrl;
+}
 
 function readPlayer() {
   try {
@@ -829,8 +869,8 @@ function readPlayer() {
       author: data.author || '',
       videoId: data.video_id || expectedVideoId || '',
     };
-  } catch (err) {
-    return { error: err.message, levels: [] };
+  } catch (e) {
+    return { levels: [], error: e.message };
   }
 }
 
@@ -875,13 +915,73 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'downloadMedia') {
     (async () => {
       let targetUrl = msg.url || msg.pageUrl;
+      const tabId = sender.tab?.id;
+
+      // ── Critical: resolve direct CDN URL for YouTube to avoid yt-dlp delay ──
+      // If the URL is a YouTube page URL (not already a googlevideo CDN URL),
+      // search sniffed streams for a matching direct URL by height.
+      // This turns a 45+ second yt-dlp spawn into an instant fdm-core download.
+      const isYouTubePageUrl = targetUrl && (
+        targetUrl.includes('youtube.com/watch') ||
+        targetUrl.includes('youtube.com/shorts') ||
+        targetUrl.includes('youtu.be/')
+      );
+
+      if (isYouTubePageUrl && tabId) {
+        // Parse requested height from filename like "Video (1080p (FHD)).mp4"
+        const heightMatch = msg.filename?.match(/(\d{3,4})p/);
+        const requestedHeight = heightMatch ? parseInt(heightMatch[1], 10) : null;
+
+        if (requestedHeight) {
+          // Step 1: Check sniffed CDN URLs (instant, from webRequest listener)
+          let directUrl = findDirectUrlForHeight(tabId, requestedHeight);
+
+          // Step 2: If not sniffed, try injecting readPlayer() for fresh streaming URLs
+          if (!directUrl) {
+            try {
+              const [injection] = await chrome.scripting.executeScript({
+                target: { tabId }, world: 'MAIN', func: readPlayer,
+              });
+              const res = injection?.result;
+              if (res && Array.isArray(res.streamFormats)) {
+                // Merge any sniffed URLs into streamFormats
+                const directMap = tabVideoDirectUrls.get(tabId);
+                for (const f of res.streamFormats) {
+                  // Try sniffed URL for this itag first
+                  let url = (directMap && directMap.has(f.itag)) ? directMap.get(f.itag) : f.url;
+                  if (url && f.height === requestedHeight) {
+                    directUrl = url;
+                    break;
+                  }
+                  // Also match by qualityLabel
+                  if (url && f.qualityLabel) {
+                    const m = f.qualityLabel.match(/(\d+)p/i);
+                    if (m && parseInt(m[1], 10) === requestedHeight) {
+                      directUrl = url;
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          if (directUrl) {
+            console.log(`[fdm] ⚡ Direct CDN URL found for ${requestedHeight}p — bypassing yt-dlp`);
+            targetUrl = directUrl;
+          } else {
+            console.log(`[fdm] ⚠ No direct CDN URL for ${requestedHeight}p — falling back to yt-dlp`);
+          }
+        }
+      }
+
       const headers = await collectHeaders(targetUrl, msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/');
       headers['Referer'] = msg.pageUrl || sender.tab?.url || 'https://www.youtube.com/';
 
       const downloadId = nextId();
       const filename = msg.filename || baseName(targetUrl) || 'video.mp4';
 
-      console.log('[fdm] downloadMedia sending to host:', targetUrl, filename);
+      console.log('[fdm] downloadMedia sending to host:', targetUrl.substring(0, 120), filename);
 
       const sent = sendToHost({
         type: 'download',
