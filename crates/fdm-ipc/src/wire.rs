@@ -103,6 +103,12 @@ pub struct AddRequest {
     /// sort into `Downloads\FDM\<Category>\`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub target_dir: Option<PathBuf>,
+
+    /// Separate audio stream URL for YouTube adaptive formats.
+    /// When set, the manager downloads video+audio in parallel and merges
+    /// with ffmpeg instead of spawning yt-dlp.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audio_url: Option<String>,
 }
 
 /// Anything the server sends.

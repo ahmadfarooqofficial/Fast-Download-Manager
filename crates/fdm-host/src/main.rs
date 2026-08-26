@@ -506,6 +506,7 @@ async fn try_relay(cmd: &DownloadCommand, ctx: &Arc<Context>) -> RelayResult {
         headers: cmd.headers.clone(),
         filename: cmd.filename.clone(),
         target_dir: cmd.target_dir.as_ref().map(PathBuf::from),
+        audio_url: cmd.audio_url.clone(),
     };
 
     match client.add(add).await {

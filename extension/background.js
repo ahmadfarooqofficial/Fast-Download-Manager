@@ -916,11 +916,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     (async () => {
       let targetUrl = msg.url || msg.pageUrl;
       const tabId = sender.tab?.id;
+      let audioUrl = null; // For adaptive streams that need separate audio
 
       // ── Critical: resolve direct CDN URL for YouTube to avoid yt-dlp delay ──
-      // If the URL is a YouTube page URL (not already a googlevideo CDN URL),
-      // search sniffed streams for a matching direct URL by height.
-      // This turns a 45+ second yt-dlp spawn into an instant fdm-core download.
       const isYouTubePageUrl = targetUrl && (
         targetUrl.includes('youtube.com/watch') ||
         targetUrl.includes('youtube.com/shorts') ||
@@ -928,49 +926,103 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       );
 
       if (isYouTubePageUrl && tabId) {
-        // Parse requested height from filename like "Video (1080p (FHD)).mp4"
         const heightMatch = msg.filename?.match(/(\d{3,4})p/);
         const requestedHeight = heightMatch ? parseInt(heightMatch[1], 10) : null;
+        const isAudioOnly = msg.filename?.includes('Audio');
 
-        if (requestedHeight) {
-          // Step 1: Check sniffed CDN URLs (instant, from webRequest listener)
-          let directUrl = findDirectUrlForHeight(tabId, requestedHeight);
+        if (requestedHeight || isAudioOnly) {
+          const directMap = tabVideoDirectUrls.get(tabId);
+          let directUrl = null;
 
-          // Step 2: If not sniffed, try injecting readPlayer() for fresh streaming URLs
-          if (!directUrl) {
-            try {
-              const [injection] = await chrome.scripting.executeScript({
-                target: { tabId }, world: 'MAIN', func: readPlayer,
-              });
-              const res = injection?.result;
-              if (res && Array.isArray(res.streamFormats)) {
-                // Merge any sniffed URLs into streamFormats
-                const directMap = tabVideoDirectUrls.get(tabId);
-                for (const f of res.streamFormats) {
-                  // Try sniffed URL for this itag first
-                  let url = (directMap && directMap.has(f.itag)) ? directMap.get(f.itag) : f.url;
-                  if (url && f.height === requestedHeight) {
-                    directUrl = url;
-                    break;
-                  }
-                  // Also match by qualityLabel
-                  if (url && f.qualityLabel) {
-                    const m = f.qualityLabel.match(/(\d+)p/i);
-                    if (m && parseInt(m[1], 10) === requestedHeight) {
-                      directUrl = url;
-                      break;
-                    }
+          // For audio-only downloads, find the best audio stream
+          if (isAudioOnly && directMap) {
+            // Audio itags: 140=m4a/128k, 251=opus/160k, 250=opus/70k, 249=opus/50k
+            for (const audioItag of [140, 251, 250, 249]) {
+              if (directMap.has(audioItag)) {
+                directUrl = directMap.get(audioItag);
+                break;
+              }
+            }
+          }
+
+          // For video: find BOTH video and audio CDN URLs
+          if (!isAudioOnly && requestedHeight) {
+            // Step 1: Check sniffed CDN URLs
+            if (directMap && directMap.size > 0) {
+              // Find video stream for this height
+              let bestVideoUrl = null;
+              let bestIsH264 = false;
+              for (const [itag, url] of directMap.entries()) {
+                if (ITAG_HEIGHT[itag] === requestedHeight) {
+                  const isH264 = H264_ITAGS.has(itag);
+                  if (!bestVideoUrl || (isH264 && !bestIsH264)) {
+                    bestVideoUrl = url;
+                    bestIsH264 = isH264;
                   }
                 }
               }
-            } catch (_) {}
+
+              // Find audio stream
+              let bestAudioUrl = null;
+              for (const audioItag of [140, 251, 250, 249]) {
+                if (directMap.has(audioItag)) {
+                  bestAudioUrl = directMap.get(audioItag);
+                  break;
+                }
+              }
+
+              if (bestVideoUrl && bestAudioUrl) {
+                directUrl = bestVideoUrl;
+                audioUrl = bestAudioUrl;
+              }
+            }
+
+            // Step 2: If not sniffed, try player response for direct URLs
+            if (!directUrl) {
+              try {
+                const [injection] = await chrome.scripting.executeScript({
+                  target: { tabId }, world: 'MAIN', func: readPlayer,
+                });
+                const res = injection?.result;
+                if (res && Array.isArray(res.streamFormats)) {
+                  let videoUrl = null;
+                  let foundAudioUrl = null;
+
+                  for (const f of res.streamFormats) {
+                    let url = (directMap && directMap.has(f.itag)) ? directMap.get(f.itag) : f.url;
+                    if (!url) continue;
+
+                    // Video match
+                    if (!videoUrl && f.height === requestedHeight) {
+                      videoUrl = url;
+                    }
+                    if (!videoUrl && f.qualityLabel) {
+                      const m = f.qualityLabel.match(/(\d+)p/i);
+                      if (m && parseInt(m[1], 10) === requestedHeight) {
+                        videoUrl = url;
+                      }
+                    }
+
+                    // Audio match
+                    if (!foundAudioUrl && f.mimeType && f.mimeType.includes('audio') && url) {
+                      foundAudioUrl = url;
+                    }
+                  }
+
+                  if (videoUrl && foundAudioUrl) {
+                    directUrl = videoUrl;
+                    audioUrl = foundAudioUrl;
+                  }
+                }
+              } catch (_) {}
+            }
           }
 
           if (directUrl) {
-            console.log(`[fdm] ⚡ Direct CDN URL found for ${requestedHeight}p — bypassing yt-dlp`);
+            console.log(`[fdm] ⚡ Direct CDN URL found for ${requestedHeight || 'audio'}p — bypassing yt-dlp`);
             targetUrl = directUrl;
           } else {
-            console.log(`[fdm] ⚠ No direct CDN URL for ${requestedHeight}p — falling back to yt-dlp`);
+            console.log(`[fdm] ⚠ No direct CDN URL for ${requestedHeight || 'audio'}p — yt-dlp fallback`);
           }
         }
       }
@@ -983,14 +1035,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       console.log('[fdm] downloadMedia sending to host:', targetUrl.substring(0, 120), filename);
 
-      const sent = sendToHost({
+      const payload = {
         type: 'download',
         id: downloadId,
         url: targetUrl,
         filename: filename,
         headers,
-      });
+      };
+      // Pass audio URL so the backend can merge video+audio without yt-dlp
+      if (audioUrl) {
+        payload.audioUrl = audioUrl;
+      }
 
+      const sent = sendToHost(payload);
       sendResponse({ success: sent, url: targetUrl });
     })();
     return true;

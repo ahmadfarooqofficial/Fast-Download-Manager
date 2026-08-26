@@ -87,6 +87,8 @@ struct Runtime {
     /// on disk to clean up.
     part: Option<PathBuf>,
     control: Option<PathBuf>,
+    /// Pre-resolved audio stream URL from the extension (for YouTube adaptive).
+    audio_url: Option<String>,
 }
 
 impl Runtime {
@@ -102,6 +104,7 @@ impl Runtime {
             run: Arc::new(AsyncMutex::new(())),
             part: None,
             control: None,
+            audio_url: None,
         }
     }
 }
@@ -267,8 +270,9 @@ impl Manager {
             let entry = DownloadEntry::new(id, new.url.as_str(), filename);
             let snapshot = entry.clone();
             reg.entries.insert(id, entry);
-            reg.runtime
-                .insert(id, Runtime::new(new.headers.clone(), new.target_dir.clone()));
+            let mut rt = Runtime::new(new.headers.clone(), new.target_dir.clone());
+            rt.audio_url = new.audio_url.clone();
+            reg.runtime.insert(id, rt);
             reg.order.push(id);
             let generation = reg.new_generation(id);
             (id, generation, snapshot)
@@ -296,8 +300,9 @@ impl Manager {
             entry.status = Status::Paused;
             let snapshot = entry.clone();
             reg.entries.insert(id, entry);
-            reg.runtime
-                .insert(id, Runtime::new(new.headers.clone(), new.target_dir.clone()));
+            let mut rt = Runtime::new(new.headers.clone(), new.target_dir.clone());
+            rt.audio_url = new.audio_url.clone();
+            reg.runtime.insert(id, rt);
             reg.order.push(id);
             (id, snapshot)
         };
@@ -605,7 +610,7 @@ impl Manager {
                 Err(_) => return, // semaphore closed: the app is shutting down
             };
 
-            let (req, cancel) = {
+            let (req, cancel, audio_url) = {
                 let mut guard = reg.lock().unwrap();
                 if !guard.is_current(id, generation) {
                     return;
@@ -629,11 +634,31 @@ impl Manager {
                 if let Some(dir) = target_dir.clone() {
                     req = req.with_target_dir(dir);
                 }
-                (req, rt.cancel.clone())
+                (req, rt.cancel.clone(), rt.audio_url.clone())
             };
 
             let max_conns = engine.config().max_connections;
-            let result = if is_video_platform(url.as_str()) {
+
+            // If we have a pre-resolved audio URL (from extension's CDN sniffer),
+            // download video+audio with fdm-core and merge with ffmpeg.
+            // This bypasses yt-dlp entirely for YouTube adaptive streams.
+            let result = if audio_url.is_some() && url.as_str().contains("googlevideo.com") {
+                download_and_merge_streams(
+                    id,
+                    generation,
+                    url.as_str(),
+                    audio_url.as_deref().unwrap(),
+                    filename.clone(),
+                    target_dir.clone(),
+                    max_conns,
+                    cancel,
+                    reg.clone(),
+                    events.clone(),
+                    store.clone(),
+                    engine.clone(),
+                    req,
+                ).await
+            } else if is_video_platform(url.as_str()) {
                 if find_tool("yt-dlp.exe").is_none() {
                     Err(fdm_core::Error::other("yt-dlp.exe is missing. Please place yt-dlp in the tools folder."))
                 } else {

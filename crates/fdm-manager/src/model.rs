@@ -129,6 +129,9 @@ pub struct NewDownload {
     /// Set only when the user picked a folder. Leaving it `None` is what makes
     /// the engine sort into `Downloads\FDM\<Category>\`.
     pub target_dir: Option<PathBuf>,
+    /// Separate audio stream URL for YouTube adaptive formats. When set, the
+    /// manager downloads video+audio in parallel and merges with ffmpeg.
+    pub audio_url: Option<String>,
 }
 
 impl NewDownload {
@@ -138,6 +141,7 @@ impl NewDownload {
             headers: fdm_core::HeaderMap::new(),
             filename: None,
             target_dir: None,
+            audio_url: None,
         }
     }
 
@@ -153,6 +157,11 @@ impl NewDownload {
 
     pub fn with_target_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.target_dir = Some(dir.into());
+        self
+    }
+
+    pub fn with_audio_url(mut self, url: impl Into<String>) -> Self {
+        self.audio_url = Some(url.into());
         self
     }
 }

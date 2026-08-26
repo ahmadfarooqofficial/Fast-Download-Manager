@@ -77,6 +77,12 @@ pub struct DownloadCommand {
     #[serde(default)]
     pub target_dir: Option<String>,
 
+    /// Separate audio stream URL for YouTube adaptive streams.
+    /// When present, the backend downloads video and audio separately and
+    /// merges with ffmpeg, completely bypassing yt-dlp.
+    #[serde(default)]
+    pub audio_url: Option<String>,
+
     #[serde(default)]
     pub protocol: Option<u32>,
 }
