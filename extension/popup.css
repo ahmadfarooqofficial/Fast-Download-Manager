@@ -193,6 +193,20 @@ body {
   align-items: center;
 }
 
+.banner--info {
+  background: var(--fdm-surface-2);
+  border-bottom-color: var(--fdm-border);
+}
+
+.banner--info svg {
+  color: var(--fdm-fg-muted);
+}
+
+.banner--info #drag-hint-fix {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* ------------------------------------------------------------------ list */
 
 main {
@@ -237,6 +251,25 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.row__handle {
+  flex: 0 0 auto;
+  color: var(--fdm-fg-subtle);
+}
+
+.row--draggable {
+  cursor: grab;
+}
+
+.row--draggable:active {
+  cursor: grabbing;
+}
+
+/* Held down while dragging: a visible dim confirms to the user that *this*
+   row is the one being dragged. */
+.row--draggable:active {
+  opacity: 0.6;
 }
 
 .row__cancel {

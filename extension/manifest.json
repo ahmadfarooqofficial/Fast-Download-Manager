@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "FDM — Fast Download Manager",
   "short_name": "FDM",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyJEjr5SbOOAiL4r5H8mK/fxJV1vvM/zliDeykA26r3fnGImZz+sjrfhDybV2zGJTt4lUt9Vvsgg7582jCdgGYPLbPdZhQG/cMFVS+iGza6OJ8iBTPWvEpZ/4vDGwF7ksvUj+yC9gp8iZFzZNwiC+KmBbMns9uFKPlEgM9+F0vrIXakzpFBwOjlVsOx6l8n4uPg8o2PyZsVcogqwGijjIBtYrPys1ll7nd46Rtzxr/UybFizSrg5Q9MjVPyhlzIDh8J1hRp0uwJzw68lhUB7qcbWBV9XYiMYuZVHIY9CtpU7l8aH8SuFMt37T42sqhYfzNirOMgkI/AWPwGtxmIyjNwIDAQAB",
   "description": "Takes over browser downloads with multi-connection acceleration and detects downloadable audio/video across the web.",
   "author": "Ahmad Farooq",

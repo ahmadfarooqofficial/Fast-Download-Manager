@@ -1143,6 +1143,14 @@ async fn download_video_platform(
         args.push("-o".into());
         args.push(output_template);
 
+        // The directory can hold other files — a previous attempt, a second
+        // download running at the same time — and yt-dlp preserves the
+        // remote Last-Modified timestamp on the file it writes, so "newest
+        // file by mtime" is not reliably *this* download. Ask yt-dlp for the
+        // exact path it produced instead of guessing from a directory scan.
+        args.push("--print".into());
+        args.push("after_move:FDM_PATH:%(filepath)s".into());
+
         args.push(url_owned);
         cmd.args(&args);
 
@@ -1180,6 +1188,7 @@ async fn download_video_platform(
         let mut track1_total: u64 = 0;
         let is_split_stream = format_arg.contains('+');
         let mut stdout_log = String::new();
+        let mut printed_path: Option<String> = None;
 
         for line in reader.lines().flatten() {
             if cancel_c.is_cancelled() {
@@ -1187,7 +1196,9 @@ async fn download_video_platform(
                 return Err(fdm_core::Error::Cancelled);
             }
 
-            if let Some(idx) = line.find("FDM_PROG:") {
+            if let Some(idx) = line.find("FDM_PATH:") {
+                printed_path = Some(line[idx + "FDM_PATH:".len()..].trim().to_string());
+            } else if let Some(idx) = line.find("FDM_PROG:") {
                 let raw = line[idx + "FDM_PROG:".len()..].trim();
                 let parts: Vec<&str> = raw.split(':').collect();
                 if parts.len() >= 4 {
@@ -1277,28 +1288,39 @@ async fn download_video_platform(
             return Err(fdm_core::Error::other(clean_err));
         }
 
-        let mut final_path = default_dir.clone();
-        if let Ok(entries) = std::fs::read_dir(&default_dir) {
-            let mut newest: Option<(std::path::PathBuf, std::time::SystemTime)> = None;
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() {
-                    let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-                    if ext == "mp4" || ext == "m4a" || ext == "webm" || ext == "mkv" {
-                        if let Ok(meta) = entry.metadata() {
-                            if let Ok(modified) = meta.modified() {
-                                if newest.as_ref().map(|(_, t)| modified > *t).unwrap_or(true) {
-                                    newest = Some((path, modified));
+        // yt-dlp told us exactly what it wrote — trust that over a directory
+        // scan. A "newest file" guess can pick up a leftover from a previous
+        // attempt or a second download running at the same time, and yt-dlp
+        // preserves the remote Last-Modified timestamp by default, so the file
+        // this run actually produced is not reliably the newest by mtime.
+        let printed = printed_path.as_deref().map(std::path::Path::new);
+        let final_path = match printed {
+            Some(p) if p.is_file() => p.to_path_buf(),
+            _ => {
+                let mut newest: Option<(std::path::PathBuf, std::time::SystemTime)> = None;
+                if let Ok(entries) = std::fs::read_dir(&default_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() {
+                            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+                            if ext == "mp4" || ext == "m4a" || ext == "webm" || ext == "mkv" {
+                                if let Ok(meta) = entry.metadata() {
+                                    if let Ok(modified) = meta.modified() {
+                                        if newest.as_ref().map(|(_, t)| modified > *t).unwrap_or(true) {
+                                            newest = Some((path, modified));
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                match newest {
+                    Some((p, _)) => p,
+                    None => default_dir.clone(),
+                }
             }
-            if let Some((p, _)) = newest {
-                final_path = p;
-            }
-        }
+        };
 
         Ok(final_path)
     }).await.map_err(|e| fdm_core::Error::other(e.to_string()))??;

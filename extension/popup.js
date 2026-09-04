@@ -14,6 +14,8 @@ const el = {
   sniffer: document.getElementById('sniffer'),
   banner: document.getElementById('banner'),
   bannerText: document.getElementById('banner-text'),
+  dragHint: document.getElementById('drag-hint'),
+  dragHintFix: document.getElementById('drag-hint-fix'),
   list: document.getElementById('list'),
   empty: document.getElementById('empty'),
   emptyHint: document.getElementById('empty-hint'),
@@ -21,10 +23,50 @@ const el = {
   template: document.getElementById('row-template'),
 };
 
+/**
+ * Whether this popup can hand the browser a `file://` URL — required for
+ * dragging a finished download out to the OS. Off by default; the user has to
+ * flip "Allow access to file URLs" for FDM in chrome://extensions. Resolved
+ * asynchronously, so the first render or two may not know yet, which is why
+ * `render` is re-run once the answer arrives instead of blocking on it.
+ */
+let fileAccessAllowed = null;
+let lastState = null;
+
 const port = chrome.runtime.connect({ name: 'fdm-ui' });
 
 port.onMessage.addListener((msg) => {
-  if (msg?.type === 'state') render(msg);
+  if (msg?.type === 'state') {
+    lastState = msg;
+    render(msg);
+  }
+});
+
+// `chrome.runtime` grew this check in Chrome 96 or so; `chrome.extension` is
+// the older home for the same call and still works, so fall back to it.
+const fdmCheckFileAccess = chrome.runtime?.isAllowedFileSchemeAccess
+  ? (cb) => chrome.runtime.isAllowedFileSchemeAccess(cb)
+  : chrome.extension?.isAllowedFileSchemeAccess
+    ? (cb) => chrome.extension.isAllowedFileSchemeAccess(cb)
+    : null;
+
+if (fdmCheckFileAccess) {
+  fdmCheckFileAccess((allowed) => {
+    fileAccessAllowed = !!allowed;
+    if (lastState) render(lastState);
+  });
+} else {
+  // No such API in this Chrome build; assume the worst rather than silently
+  // drawing rows that can never actually be dragged out.
+  fileAccessAllowed = false;
+}
+
+el.dragHintFix?.addEventListener('click', () => {
+  try {
+    chrome.tabs.create({ url: `chrome://extensions/?id=${chrome.runtime.id}` });
+  } catch (e) {
+    console.debug('[fdm popup] could not open extension settings', e);
+  }
 });
 
 function safePost(msg) {
@@ -73,6 +115,10 @@ function render(state) {
   el.clear.hidden = !rows.some(
     (r) => r.state === 'completed' || r.state === 'failed'
   );
+
+  // Only worth nagging about once there is something to actually drag.
+  const hasDraggable = rows.some((r) => r.state === 'completed' && r.path);
+  if (el.dragHint) el.dragHint.hidden = !(hasDraggable && fileAccessAllowed === false);
 }
 
 /** Per-state wording. The word is the signal; the colour only reinforces it. */
@@ -160,5 +206,71 @@ function rowNode(row) {
     });
   }
 
+  if (row.state === 'completed' && row.path) {
+    attachDragOut(node, row);
+  }
+
   return node;
+}
+
+// --------------------------------------------------------------- drag-out
+
+/**
+ * Let a finished download be dragged straight out of the popup onto the
+ * desktop, a folder window, or another app — the way Chrome's own downloads
+ * shelf lets you drag out a completed file.
+ *
+ * Chrome recognises the `DownloadURL` data-transfer type on drop and fetches
+ * the given URL itself to materialise the file wherever it was dropped. For a
+ * file that already exists on disk, that URL is a `file://` one, which Chrome
+ * will only fetch for an extension that has "Allow access to file URLs"
+ * turned on — hence the hint banner in `render` for everyone who hasn't.
+ */
+function attachDragOut(node, row) {
+  const handle = node.querySelector('.row__handle');
+  const fileUrl = fdmPathToFileUrl(row.path);
+  if (!fileUrl) return;
+
+  if (handle) handle.hidden = false;
+  node.classList.add('row--draggable');
+  node.draggable = true;
+  node.title = fileAccessAllowed === false
+    ? `Enable "Allow access to file URLs" in chrome://extensions to drag ${row.filename} out`
+    : `Drag to save ${row.filename} anywhere`;
+
+  node.addEventListener('dragstart', (e) => {
+    const mime = fdmMimeFor(row.filename);
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('DownloadURL', `${mime}:${row.filename}:${fileUrl}`);
+    // Belt and braces for drop targets that read a plain link instead.
+    e.dataTransfer.setData('text/uri-list', fileUrl);
+    e.dataTransfer.setData('text/plain', row.filename);
+  });
+}
+
+/** `C:\Users\me\Downloads\clip.mp4` -> `file:///C:/Users/me/Downloads/clip.mp4`. */
+function fdmPathToFileUrl(path) {
+  if (!path) return null;
+  let posix = String(path).replace(/\\/g, '/');
+  if (!posix.startsWith('/')) posix = `/${posix}`;
+  const encoded = posix
+    .split('/')
+    .map((segment) => encodeURIComponent(segment).replace(/%3A/gi, ':'))
+    .join('/');
+  return `file://${encoded}`;
+}
+
+const FDM_MIME_BY_EXT = {
+  mp4: 'video/mp4', m4v: 'video/mp4', mkv: 'video/x-matroska', webm: 'video/webm',
+  avi: 'video/x-msvideo', mov: 'video/quicktime', flv: 'video/x-flv',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', flac: 'audio/flac', ogg: 'audio/ogg',
+  zip: 'application/zip', rar: 'application/vnd.rar', '7z': 'application/x-7z-compressed',
+  tar: 'application/x-tar', gz: 'application/gzip',
+  pdf: 'application/pdf', exe: 'application/x-msdownload', msi: 'application/x-msi',
+  iso: 'application/x-iso9660-image',
+};
+
+function fdmMimeFor(filename) {
+  const ext = String(filename).split('.').pop()?.toLowerCase();
+  return FDM_MIME_BY_EXT[ext] || 'application/octet-stream';
 }
