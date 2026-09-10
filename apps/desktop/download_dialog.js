@@ -6,6 +6,10 @@ const tauri = window.__TAURI__ || window.__TAURI_INTERNALS__ || {};
 const invoke = (tauri.core && tauri.core.invoke) || tauri.invoke || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
 const listen = (tauri.event && tauri.event.listen) || tauri.listen || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.listen);
 
+function t(key, vars) {
+  return window.fdmI18n ? window.fdmI18n.t(key, vars) : key;
+}
+
 // Extract download ID from URL query: download_dialog.html?id=123
 const urlParams = new URLSearchParams(window.location.search);
 const downloadId = parseInt(urlParams.get('id'), 10);
@@ -198,7 +202,7 @@ function startAnimLoop() {
         el.size.textContent = `${formatBytes(currentDisplayed.downloaded)} / ${formatBytes(total)} (${pctFormatted}%)`;
       } else {
         el.progressFill.style.width = '100%';
-        el.size.textContent = `${formatBytes(currentDisplayed.downloaded)} (calculating total...)`;
+        el.size.textContent = `${formatBytes(currentDisplayed.downloaded)} (${t('dialog_calculating_total')})`;
       }
 
       el.speed.textContent = formatSpeed(currentDisplayed.speed);
@@ -226,11 +230,11 @@ function render(d) {
     el.viewPrompt.style.display = 'none';
     el.viewActive.style.display = 'none';
     el.viewCompleted.style.display = 'flex';
-    el.titleText.textContent = 'Download Complete';
+    el.titleText.textContent = t('dialog_title_complete');
 
     el.celebrateFilename.textContent = d.filename || 'Downloaded file';
     el.celebrateFilename.title = d.filename || '';
-    el.celebratePath.textContent = d.path || 'Downloads folder';
+    el.celebratePath.textContent = d.path || t('dialog_downloads_folder');
     el.celebratePath.title = d.path || '';
     el.celebrateSize.textContent = formatBytes(downloaded || total);
     return;
@@ -240,7 +244,7 @@ function render(d) {
   if (el.promptUrl) el.promptUrl.value = d.url || '';
   if (el.promptFilename) el.promptFilename.value = d.filename || '';
   if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Video').toUpperCase();
-  if (el.promptPath) el.promptPath.value = d.path || 'Downloads folder';
+  if (el.promptPath) el.promptPath.value = d.path || t('dialog_downloads_folder');
 
   // If user started or download already started receiving bytes
   if (userStarted || (d.downloaded && d.downloaded > 0) || d.status === 'downloading') {
@@ -252,7 +256,7 @@ function render(d) {
     el.viewPrompt.style.display = 'flex';
     el.viewActive.style.display = 'none';
     el.viewCompleted.style.display = 'none';
-    el.titleText.textContent = 'Download File Info';
+    el.titleText.textContent = t('dialog_title_file_info');
     return;
   }
 
@@ -260,7 +264,7 @@ function render(d) {
   el.viewPrompt.style.display = 'none';
   el.viewActive.style.display = 'flex';
   el.viewCompleted.style.display = 'none';
-  el.titleText.textContent = 'Download Status';
+  el.titleText.textContent = t('dialog_title_status');
 
   if (el.fileIcon) {
     el.fileIcon.innerHTML = getFileIcon(d.filename, d.category);
@@ -272,45 +276,45 @@ function render(d) {
   el.url.title = d.url || '';
 
   const conns = d.active_connections || d.activeConnections || d.segments || 32;
-  el.progressSegs.textContent = `${conns} parallel streams`;
+  el.progressSegs.textContent = `${conns} ${t('dialog_connections_suffix')}`;
 
   if (d.status === 'paused') {
     el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
     el.progressFill.style.background = 'var(--fdm-warning)';
     el.progressFill.classList.remove('shimmer');
-    el.status.textContent = 'Paused';
+    el.status.textContent = t('dialog_status_paused');
     el.status.style.color = 'var(--fdm-warning)';
     el.speed.textContent = '0 B/s';
-    el.btnPause.textContent = 'Resume';
+    el.btnPause.textContent = t('dialog_btn_resume');
     el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'failed') {
     el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
     el.progressFill.style.background = 'var(--fdm-red)';
     el.progressFill.classList.remove('shimmer');
-    el.status.textContent = d.error ? `Failed: ${d.error}` : 'Failed';
+    el.status.textContent = d.error ? `${t('row_failed_prefix')}${d.error}` : t('dialog_status_failed');
     el.status.style.color = 'var(--fdm-red)';
     el.speed.textContent = '0 B/s';
-    el.btnPause.textContent = 'Retry';
+    el.btnPause.textContent = t('dialog_btn_retry');
     el.btnPause.className = 'btn btn-primary';
   } else if (d.status === 'connecting' || d.status === 'queued' || d.status === 'starting' || (d.status === 'downloading' && downloaded === 0)) {
     // Connecting / resolving — show shimmer animation
     el.progressFill.style.width = '100%';
     el.progressFill.style.background = 'var(--fdm-surface-2)';
     el.progressFill.classList.add('shimmer');
-    el.status.textContent = 'Connecting to server…';
+    el.status.textContent = t('dialog_status_connecting');
     el.status.style.color = 'var(--fdm-info)';
     el.speed.textContent = '—';
     el.eta.textContent = '—';
-    el.btnPause.textContent = 'Pause';
+    el.btnPause.textContent = t('dialog_pause');
     el.btnPause.className = 'btn btn-secondary';
   } else {
     // downloading with actual progress
     el.progressFill.style.background = 'linear-gradient(90deg, #e50914 0%, #ff4b2b 50%, #2ecc71 100%)';
     el.progressFill.classList.remove('shimmer');
-    el.status.textContent = `Downloading (${conns} connections)`;
+    el.status.textContent = t('dialog_status_downloading', { n: conns });
     el.status.style.color = 'var(--fdm-info)';
     el.eta.textContent = formatTime(d.eta_secs || d.etaSecs);
-    el.btnPause.textContent = 'Pause';
+    el.btnPause.textContent = t('dialog_pause');
     el.btnPause.className = 'btn btn-secondary';
   }
 
@@ -320,7 +324,7 @@ function render(d) {
     el.progressPct.textContent = `${pctFormatted}%`;
     el.progressFill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
   } else if (d.status !== 'downloading') {
-    el.size.textContent = `${formatBytes(downloaded)} (calculating total...)`;
+    el.size.textContent = `${formatBytes(downloaded)} (${t('dialog_calculating_total')})`;
   }
 
   // Destination path
@@ -328,10 +332,10 @@ function render(d) {
     el.path.textContent = d.path;
     el.path.title = d.path;
   } else {
-    el.path.textContent = 'Downloads folder';
+    el.path.textContent = t('dialog_downloads_folder');
   }
 
-  el.resume.textContent = d.resumable !== false ? 'Yes' : 'No';
+  el.resume.textContent = d.resumable !== false ? t('dialog_resume_yes') : t('dialog_resume_no');
 }
 
 // Window controls
@@ -348,8 +352,8 @@ el.promptBtnStart?.addEventListener('click', async () => {
   el.viewPrompt.style.display = 'none';
   el.viewActive.style.display = 'flex';
   el.viewCompleted.style.display = 'none';
-  el.titleText.textContent = 'Download Status';
-  el.status.textContent = 'Connecting to server…';
+  el.titleText.textContent = t('dialog_title_status');
+  el.status.textContent = t('dialog_status_connecting');
   el.status.style.color = 'var(--fdm-info)';
   el.progressFill.style.width = '100%';
   el.progressFill.classList.add('shimmer');
@@ -377,10 +381,10 @@ el.btnPause?.addEventListener('click', async () => {
   if (!currentDownload) return;
   const st = (currentDownload.status || '').toLowerCase();
   if (st === 'paused' || st === 'failed') {
-    el.btnPause.textContent = 'Starting...';
+    el.btnPause.textContent = t('dialog_btn_starting');
     await invoke('resume_download', { id: downloadId });
   } else {
-    el.btnPause.textContent = 'Pausing...';
+    el.btnPause.textContent = t('dialog_btn_pausing');
     await invoke('pause_download', { id: downloadId });
   }
 });
@@ -445,6 +449,10 @@ el.celebrateBtnManager?.addEventListener('click', async () => {
 document.addEventListener('mousedown', (e) => {
   if (e.target.closest('button, input, select, a, .celebrate-drag-chip, .prompt-card, .dialog-grid')) return;
   window.__TAURI__?.window?.getCurrentWindow()?.startDragging().catch(() => {});
+});
+
+document.addEventListener('fdm-language-changed', () => {
+  if (currentDownload) render(currentDownload);
 });
 
 // Initialization & Live Sync

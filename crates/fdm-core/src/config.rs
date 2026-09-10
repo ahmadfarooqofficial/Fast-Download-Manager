@@ -68,7 +68,13 @@ impl Default for EngineConfig {
             max_retries: 10,
             connect_timeout: Duration::from_secs(8),
             read_timeout: Duration::from_secs(20),
-            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 FDM/0.1.0".into(),
+            // Deliberately does NOT include an "FDM/..." token. Many hosts
+            // block known download-manager user agents (FDM, IDM, wget, ...)
+            // and serve a small HTML "access denied" page with a 200 status
+            // instead of the real file, which looks like a tiny/broken
+            // download to the user even though the engine transferred it
+            // correctly. Blending in with a plain browser avoids that.
+            user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36".into(),
             download_root: default_download_root(),
             organize_by_type: true,
             temp_dir: default_temp_dir(),

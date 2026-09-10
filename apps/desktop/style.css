@@ -526,6 +526,41 @@ button {
   max-width: 360px;
 }
 
+/* ------------------------------------------------------- Drag & Drop Overlay */
+.drop-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: var(--fdm-z-modal);
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(3px);
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drop-overlay.is-active {
+  display: flex;
+}
+
+.drop-overlay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--fdm-space-3);
+  padding: var(--fdm-space-8) var(--fdm-space-10);
+  border: 2px dashed var(--fdm-red);
+  border-radius: var(--fdm-radius-xl);
+  background: var(--fdm-surface);
+  color: var(--fdm-fg);
+  font-size: var(--fdm-text-subtitle);
+  font-weight: var(--fdm-weight-semibold);
+}
+
+.drop-overlay-card svg {
+  color: var(--fdm-red-text);
+}
+
 /* ----------------------------------------------------------- Modal Dialogs */
 .modal-dialog {
   border: 1px solid var(--fdm-border-strong);

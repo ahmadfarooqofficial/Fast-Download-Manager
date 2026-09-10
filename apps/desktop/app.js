@@ -112,34 +112,45 @@ function updateCategoryCounts() {
 const listEl = document.getElementById('download-list');
 const emptyEl = document.getElementById('empty-state');
 
+function t(key, vars) {
+  return window.fdmI18n ? window.fdmI18n.t(key, vars) : key;
+}
+
+function statusLabelText(status, d) {
+  if (status === 'downloading') {
+    const segments = d.segments || 1;
+    const activeConns = d.active_connections || 0;
+    return `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
+  }
+  if (status === 'failed') {
+    return d.error ? `${t('row_failed_prefix')}${escapeHtml(d.error)}` : t('status_failed');
+  }
+  const known = ['queued', 'connecting', 'paused', 'completed', 'cancelled'];
+  return known.includes(status) ? t(`status_${status}`) : status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 function getRowHtml(d) {
   const total = d.total || 0;
   const downloaded = d.downloaded || 0;
   const percent = total > 0 ? ((downloaded / total) * 100).toFixed(1) : 0;
   const status = (d.status || 'queued').toLowerCase();
   const segments = d.segments || 1;
-  const activeConns = d.active_connections || 0;
 
-  let statusText = status.charAt(0).toUpperCase() + status.slice(1);
-  if (status === 'downloading') {
-    statusText = `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
-  } else if (status === 'failed') {
-    statusText = d.error ? `Failed: ${escapeHtml(d.error)}` : 'Failed';
-  }
+  const statusText = statusLabelText(status, d);
 
   const actions = [];
   if (['queued', 'connecting', 'downloading'].includes(status)) {
-    actions.push(`<button onclick="window.fdm.pause(${d.id})">Pause</button>`);
-    actions.push(`<button class="btn-danger" onclick="window.fdm.cancel(${d.id})">Cancel</button>`);
+    actions.push(`<button onclick="window.fdm.pause(${d.id})">${t('action_pause')}</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.cancel(${d.id})">${t('action_cancel')}</button>`);
   } else if (['paused', 'failed', 'cancelled'].includes(status)) {
-    actions.push(`<button onclick="window.fdm.resume(${d.id})">Resume</button>`);
-    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, true)">Delete</button>`);
+    actions.push(`<button onclick="window.fdm.resume(${d.id})">${t('action_resume')}</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, true)">${t('action_delete')}</button>`);
   } else if (status === 'completed') {
     if (d.path) {
-      actions.push(`<button onclick="window.fdm.openFile('${escapeHtml(d.path)}')">Open File</button>`);
-      actions.push(`<button onclick="window.fdm.openFolder('${escapeHtml(d.path)}')">Open Folder</button>`);
+      actions.push(`<button onclick="window.fdm.openFile('${escapeHtml(d.path)}')">${t('action_open_file')}</button>`);
+      actions.push(`<button onclick="window.fdm.openFolder('${escapeHtml(d.path)}')">${t('action_open_folder')}</button>`);
     }
-    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, false)">Remove</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, false)">${t('action_remove')}</button>`);
   }
 
   return `
@@ -152,7 +163,7 @@ function getRowHtml(d) {
           </svg>
         </div>
         <div class="file-meta">
-          <div class="filename" title="${escapeHtml(d.filename)}">${escapeHtml(d.filename || 'Resolving name...')}</div>
+          <div class="filename" title="${escapeHtml(d.filename)}">${escapeHtml(d.filename || t('row_resolving_name'))}</div>
           <div class="file-url" title="${escapeHtml(d.url)}">${escapeHtml(d.url)}</div>
         </div>
       </div>
@@ -172,7 +183,7 @@ function getRowHtml(d) {
       </div>
       <div class="row-stats fdm-num">
         <span class="stat-pct">${percent}%</span>
-        <span class="stat-bytes">${formatBytes(downloaded)} of ${total > 0 ? formatBytes(total) : 'Unknown'}</span>
+        <span class="stat-bytes">${formatBytes(downloaded)} ${t('row_of')} ${total > 0 ? formatBytes(total) : t('status_unknown')}</span>
       </div>
     </div>
   `;
@@ -184,7 +195,6 @@ function updateRowInPlace(rowEl, d) {
   const percent = total > 0 ? ((downloaded / total) * 100).toFixed(1) : 0;
   const status = (d.status || 'queued').toLowerCase();
   const segments = d.segments || 1;
-  const activeConns = d.active_connections || 0;
 
   const currentStatus = rowEl.dataset.status;
   if (currentStatus !== status) {
@@ -202,20 +212,14 @@ function updateRowInPlace(rowEl, d) {
 
   const statusLabel = rowEl.querySelector('.status-label');
   if (statusLabel) {
-    let statusText = status.charAt(0).toUpperCase() + status.slice(1);
-    if (status === 'downloading') {
-      statusText = `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
-    } else if (status === 'failed') {
-      statusText = d.error ? `Failed: ${escapeHtml(d.error)}` : 'Failed';
-    }
-    statusLabel.textContent = statusText;
+    statusLabel.textContent = statusLabelText(status, d);
   }
 
   const pctEl = rowEl.querySelector('.stat-pct');
   if (pctEl) pctEl.textContent = `${percent}%`;
 
   const bytesEl = rowEl.querySelector('.stat-bytes');
-  if (bytesEl) bytesEl.textContent = `${formatBytes(downloaded)} of ${total > 0 ? formatBytes(total) : 'Unknown'}`;
+  if (bytesEl) bytesEl.textContent = `${formatBytes(downloaded)} ${t('row_of')} ${total > 0 ? formatBytes(total) : t('status_unknown')}`;
 
   const fnEl = rowEl.querySelector('.filename');
   if (fnEl && d.filename && fnEl.textContent !== d.filename) {
@@ -308,7 +312,7 @@ document.getElementById('add-form').addEventListener('submit', (e) => {
   const url = document.getElementById('add-url').value.trim();
   if (url) {
     invoke('add_download', { url, headers: {} }).catch(err => {
-      alert('Failed to add download: ' + err);
+      alert(t('alert_add_failed') + err);
     });
     document.getElementById('add-dialog').close();
   }
@@ -359,6 +363,8 @@ async function applySettings() {
   }
 }
 
+const cfgLanguage = document.getElementById('cfg-language');
+
 document.getElementById('btn-open-settings').addEventListener('click', async () => {
   try {
     const cfg = await invoke('get_config');
@@ -369,11 +375,15 @@ document.getElementById('btn-open-settings').addEventListener('click', async () 
   } catch (err) {
     console.error('Failed to load settings:', err);
   }
+  if (cfgLanguage && window.fdmI18n) cfgLanguage.value = window.fdmI18n.getLanguage();
   settingsDialog.showModal();
 });
 
 cfgMaxActive?.addEventListener('change', applySettings);
 cfgMaxConn?.addEventListener('change', applySettings);
+cfgLanguage?.addEventListener('change', () => {
+  window.fdmI18n?.setLanguage(cfgLanguage.value);
+});
 
 document.getElementById('btn-settings-close').addEventListener('click', () => {
   applySettings();
@@ -393,6 +403,68 @@ document.getElementById('titlebar-maximize')?.addEventListener('click', () => {
 });
 document.getElementById('titlebar-close')?.addEventListener('click', () => {
   invoke('close_window').catch(console.error);
+});
+
+// ------------------------------------------------------------- Drag & Drop
+// Dropping a link (dragged from a browser tab, address bar, etc.) anywhere on
+// the window starts a download, the same way pasting it into the Add dialog
+// does. Tauri/WebView2 would otherwise navigate the window to the dropped URL,
+// so both dragover and drop must call preventDefault().
+const dropOverlay = document.getElementById('drop-overlay');
+let dragDepth = 0;
+
+function extractUrl(dataTransfer) {
+  const uriList = dataTransfer.getData('text/uri-list');
+  const plain = dataTransfer.getData('text/plain');
+  const candidate = (uriList || plain || '').split('\n').find(line => line && !line.startsWith('#'));
+  if (!candidate) return null;
+  try {
+    const url = new URL(candidate.trim());
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.toString();
+    }
+  } catch (_err) {
+    // Not a URL — ignore.
+  }
+  return null;
+}
+
+document.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragDepth++;
+  dropOverlay?.classList.add('is-active');
+});
+
+document.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+});
+
+document.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropOverlay?.classList.remove('is-active');
+});
+
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropOverlay?.classList.remove('is-active');
+
+  const url = extractUrl(e.dataTransfer);
+  if (!url) return;
+
+  invoke('add_download', { url, headers: {} }).catch(err => {
+    alert('Failed to add download: ' + err);
+  });
+});
+
+// Dynamically-generated row markup (status text, action buttons) isn't
+// covered by data-i18n attributes, so force a full rebuild when the language
+// changes instead of relying on the incremental in-place update path.
+document.addEventListener('fdm-language-changed', () => {
+  listEl.innerHTML = '';
+  render();
 });
 
 // ------------------------------------------------------------- Initialization

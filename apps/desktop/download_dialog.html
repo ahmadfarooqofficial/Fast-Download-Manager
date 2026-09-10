@@ -6,6 +6,9 @@
   <title>FDM — Download</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
+  <script src="i18n/en.js"></script>
+  <script src="i18n/ru.js"></script>
+  <script src="i18n.js"></script>
 </head>
 <body class="dialog-body" data-tauri-drag-region>
   <!-- Custom Drag Titlebar -->
@@ -19,10 +22,10 @@
       <span class="brand-subtitle" id="dialog-title-text" data-tauri-drag-region>Download File Info</span>
     </div>
     <div class="titlebar-controls">
-      <button class="titlebar-btn" id="dialog-minimize" title="Minimize" aria-label="Minimize">
+      <button class="titlebar-btn" id="dialog-minimize" data-i18n-title="titlebar_minimize" data-i18n-aria-label="titlebar_minimize" title="Minimize" aria-label="Minimize">
         <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
       </button>
-      <button class="titlebar-btn btn-close" id="dialog-close" title="Close" aria-label="Close">
+      <button class="titlebar-btn btn-close" id="dialog-close" data-i18n-title="titlebar_close" data-i18n-aria-label="titlebar_close" title="Close" aria-label="Close">
         <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2"/></svg>
       </button>
     </div>
@@ -35,19 +38,19 @@
     <div id="view-prompt" class="dialog-view prompt-view">
       <div class="prompt-card">
         <div class="prompt-row">
-          <label class="prompt-label">URL:</label>
+          <label class="prompt-label" data-i18n="dialog_url_label">URL:</label>
           <input type="text" class="prompt-input" id="prompt-url" readonly />
         </div>
         <div class="prompt-row">
-          <label class="prompt-label">Category:</label>
+          <label class="prompt-label" data-i18n="dialog_category_label">Category:</label>
           <span class="prompt-badge" id="prompt-category">Video</span>
         </div>
         <div class="prompt-row">
-          <label class="prompt-label">File Name:</label>
+          <label class="prompt-label" data-i18n="dialog_filename_label">File Name:</label>
           <input type="text" class="prompt-input prompt-filename-input" id="prompt-filename" />
         </div>
         <div class="prompt-row">
-          <label class="prompt-label">Save To:</label>
+          <label class="prompt-label" data-i18n="dialog_save_to_label">Save To:</label>
           <div class="prompt-save-wrap">
             <input type="text" class="prompt-input prompt-path-input" id="prompt-path" readonly />
           </div>
@@ -57,7 +60,7 @@
       <!-- Action Buttons to Start or Queue -->
       <footer class="dialog-actions prompt-actions">
         <div class="dialog-actions-left">
-          <button class="btn btn-secondary" id="prompt-btn-later">
+          <button class="btn btn-secondary" id="prompt-btn-later" data-i18n="dialog_download_later">
             Download Later
           </button>
         </div>
@@ -66,9 +69,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            Start Download
+            <span data-i18n="dialog_start_download">Start Download</span>
           </button>
-          <button class="btn btn-danger" id="prompt-btn-cancel">
+          <button class="btn btn-danger" id="prompt-btn-cancel" data-i18n="add_dialog_cancel">
             Cancel
           </button>
         </div>
@@ -105,27 +108,27 @@
       <!-- Status & Metrics Grid -->
       <div class="dialog-grid">
         <div class="dlg-cell">
-          <span class="dlg-label">Status:</span>
+          <span class="dlg-label" data-i18n="dialog_status_label">Status:</span>
           <span class="dlg-val" id="dlg-status">Connecting…</span>
         </div>
         <div class="dlg-cell">
-          <span class="dlg-label">File size:</span>
+          <span class="dlg-label" data-i18n="dialog_file_size_label">File size:</span>
           <span class="dlg-val" id="dlg-size">—</span>
         </div>
         <div class="dlg-cell">
-          <span class="dlg-label">Transfer rate:</span>
+          <span class="dlg-label" data-i18n="dialog_transfer_rate_label">Transfer rate:</span>
           <span class="dlg-val highlight-speed" id="dlg-speed">0 B/s</span>
         </div>
         <div class="dlg-cell">
-          <span class="dlg-label">Time left:</span>
+          <span class="dlg-label" data-i18n="dialog_time_left_label">Time left:</span>
           <span class="dlg-val" id="dlg-eta">—</span>
         </div>
         <div class="dlg-cell">
-          <span class="dlg-label">Resume capability:</span>
+          <span class="dlg-label" data-i18n="dialog_resume_capability_label">Resume capability:</span>
           <span class="dlg-val" id="dlg-resume">Yes</span>
         </div>
         <div class="dlg-cell">
-          <span class="dlg-label">Save to:</span>
+          <span class="dlg-label" data-i18n="dialog_save_to_label2">Save to:</span>
           <span class="dlg-val dlg-path" id="dlg-path">—</span>
         </div>
       </div>
@@ -133,18 +136,18 @@
       <!-- Action Buttons During Download -->
       <footer class="dialog-actions">
         <div class="dialog-actions-left">
-          <button class="btn btn-secondary" id="dlg-btn-manager" title="Open Full Fast Download Manager Window">
+          <button class="btn btn-secondary" id="dlg-btn-manager" data-i18n="dialog_open_manager" data-i18n-title="dialog_open_manager_title" title="Open Full Fast Download Manager Window">
             Open Manager
           </button>
         </div>
         <div class="dialog-actions-right">
-          <button class="btn btn-secondary" id="dlg-btn-folder" title="Open containing folder">
+          <button class="btn btn-secondary" id="dlg-btn-folder" data-i18n="dialog_open_folder" data-i18n-title="dialog_open_folder_title" title="Open containing folder">
             Open Folder
           </button>
           <button class="btn btn-secondary" id="dlg-btn-pause">
             Pause
           </button>
-          <button class="btn btn-danger" id="dlg-btn-cancel">
+          <button class="btn btn-danger" id="dlg-btn-cancel" data-i18n="add_dialog_cancel">
             Cancel
           </button>
         </div>
@@ -159,40 +162,40 @@
           <polyline points="22 4 12 14.01 9 11.01"></polyline>
         </svg>
       </div>
-      <h2 class="celebrate-title" data-tauri-drag-region>Download Complete</h2>
-      
+      <h2 class="celebrate-title" data-tauri-drag-region data-i18n="dialog_title_complete">Download Complete</h2>
+
       <!-- IDM Style Draggable File Chip -->
-      <div class="celebrate-drag-chip" id="celebrate-drag-chip" title="Drag to desktop/folder or click to open" draggable="true">
+      <div class="celebrate-drag-chip" id="celebrate-drag-chip" data-i18n-title="dialog_drag_hint" title="Drag to desktop/folder or click to open" draggable="true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
         </svg>
         <span class="celebrate-filename" id="celebrate-filename">—</span>
-        <span class="celebrate-drag-tag">Drag & Drop</span>
+        <span class="celebrate-drag-tag" data-i18n="dialog_drag_tag">Drag & Drop</span>
       </div>
-      
+
       <div class="celebrate-card" data-tauri-drag-region>
         <div class="celebrate-row" data-tauri-drag-region>
-          <span class="celebrate-label">Saved to:</span>
+          <span class="celebrate-label" data-i18n="dialog_saved_to">Saved to:</span>
           <span class="celebrate-value" id="celebrate-path">—</span>
         </div>
         <div class="celebrate-row" data-tauri-drag-region>
-          <span class="celebrate-label">Total Size:</span>
+          <span class="celebrate-label" data-i18n="dialog_total_size">Total Size:</span>
           <span class="celebrate-value highlight-size" id="celebrate-size">—</span>
         </div>
       </div>
 
       <footer class="dialog-actions celebrate-actions">
-        <button class="btn btn-primary btn-celebrate-open" id="celebrate-btn-open">
+        <button class="btn btn-primary btn-celebrate-open" id="celebrate-btn-open" data-i18n="dialog_open_file">
           Open File
         </button>
-        <button class="btn btn-secondary" id="celebrate-btn-folder" title="Show in folder">
+        <button class="btn btn-secondary" id="celebrate-btn-folder" data-i18n="dialog_open_folder" data-i18n-title="dialog_open_folder_title2" title="Show in folder">
           Open Folder
         </button>
-        <button class="btn btn-secondary" id="celebrate-btn-manager">
+        <button class="btn btn-secondary" id="celebrate-btn-manager" data-i18n="dialog_open_manager">
           Open Manager
         </button>
-        <button class="btn btn-secondary" id="celebrate-btn-close">
+        <button class="btn btn-secondary" id="celebrate-btn-close" data-i18n="dialog_close">
           Close
         </button>
       </footer>
