@@ -38,6 +38,18 @@ pub struct EngineConfig {
     /// Sort finished files into per-type subfolders under `download_root`.
     pub organize_by_type: bool,
 
+    /// Per-category destination overrides, keyed by [`Category::folder`]
+    /// ("Video", "Programs", …).
+    ///
+    /// Keyed by the folder name rather than the enum so the map survives a
+    /// round trip through JSON — the UI persists these — without `Category`
+    /// having to become an ordered, hashable map key.
+    ///
+    /// An entry here wins over `download_root`, which is the point: a user with
+    /// a small SSD wants video on the spare drive and documents where they can
+    /// find them, and "one root for everything" cannot express that.
+    pub category_dirs: std::collections::BTreeMap<String, PathBuf>,
+
     /// Where `.part` and `.fdm` files live while a download is running.
     ///
     /// Separated from `download_root` the way IDM separates its temporary
@@ -77,6 +89,7 @@ impl Default for EngineConfig {
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36".into(),
             download_root: default_download_root(),
             organize_by_type: true,
+            category_dirs: std::collections::BTreeMap::new(),
             temp_dir: default_temp_dir(),
             use_temp_dir: true,
             progress_interval: Duration::from_millis(16),

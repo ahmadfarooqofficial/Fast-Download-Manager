@@ -6,8 +6,7 @@
   <title>FDM — Fast Download Manager</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
-  <script src="i18n/en.js"></script>
-  <script src="i18n/ru.js"></script>
+  <script src="i18n/languages.js"></script>
   <script src="i18n.js"></script>
   <script type="module" src="app.js" defer></script>
 </head>
@@ -205,14 +204,27 @@
           <h4 class="settings-heading" data-i18n="settings_locations">Locations</h4>
           <div class="setting-item">
             <label class="setting-label" data-i18n="settings_download_folder">Download Folder</label>
-            <div class="setting-val fdm-selectable" id="cfg-download-root">—</div>
+            <div class="path-row">
+              <div class="setting-val fdm-selectable" id="cfg-download-root">—</div>
+              <button type="button" class="btn-browse" id="btn-browse-root" data-i18n-title="settings_browse">📂</button>
+            </div>
             <p class="setting-hint" data-i18n="settings_download_folder_hint">Files are automatically categorized into subfolders (Video, Music, Documents, etc.)</p>
           </div>
           <div class="setting-item">
             <label class="setting-label" data-i18n="settings_temp_folder">Temporary Folder</label>
-            <div class="setting-val fdm-selectable" id="cfg-temp-dir">—</div>
+            <div class="path-row">
+              <div class="setting-val fdm-selectable" id="cfg-temp-dir">—</div>
+              <button type="button" class="btn-browse" id="btn-browse-temp" data-i18n-title="settings_browse">📂</button>
+            </div>
             <p class="setting-hint" data-i18n="settings_temp_folder_hint">Partial data is assembled here during active download.</p>
           </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_category_folders">Folder per category</h4>
+          <!-- One row per category, built by app.js from the engine's own list. -->
+          <div id="cfg-category-list"></div>
+          <p class="setting-hint" data-i18n="settings_category_folders_hint">Leave a category empty to keep it inside the download folder above.</p>
         </div>
 
         <div class="settings-section">
@@ -246,10 +258,9 @@
         <div class="settings-section">
           <h4 class="settings-heading" data-i18n="settings_language">Language</h4>
           <div class="setting-item">
-            <select class="setting-select" id="cfg-language">
-              <option value="en">English</option>
-              <option value="ru">Русский</option>
-            </select>
+            <!-- Options are filled from i18n/languages.js so adding a
+                 language never means touching this file. -->
+            <select class="setting-select" id="cfg-language"></select>
             <p class="setting-hint" data-i18n="settings_language_hint">Changes apply immediately, no restart required.</p>
           </div>
         </div>

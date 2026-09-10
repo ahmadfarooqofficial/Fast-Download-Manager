@@ -34,7 +34,7 @@ pub mod model;
 pub mod store;
 
 pub use error::{ManagerError, Result};
-pub use manager::{Manager, DEFAULT_MAX_ACTIVE};
+pub use manager::{prewarm_video_tools, Manager, DEFAULT_MAX_ACTIVE};
 pub use model::{DownloadEntry, DownloadId, Event, NewDownload, Status};
 pub use store::Store;
 

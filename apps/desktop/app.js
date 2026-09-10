@@ -117,6 +117,13 @@ function t(key, vars) {
 }
 
 function statusLabelText(status, d) {
+  // A video extraction reports which step it is on before any byte moves.
+  // Showing it is the difference between a progress bar that looks stuck and
+  // one that is visibly working. Only while it is actually running, though —
+  // a stage left over from a since-paused download would be a lie.
+  if (d.stage && !d.downloaded && ['queued', 'connecting', 'downloading'].includes(status)) {
+    return t(`stage_${d.stage}`);
+  }
   if (status === 'downloading') {
     const segments = d.segments || 1;
     const activeConns = d.active_connections || 0;
@@ -354,16 +361,111 @@ const cfgMaxConn = document.getElementById('cfg-max-conn');
 async function applySettings() {
   const maxActive = parseInt(cfgMaxActive.value, 10) || 4;
   const maxConnections = parseInt(cfgMaxConn.value, 10) || 32;
+  const downloadRoot = document.getElementById('cfg-download-root')?.textContent;
+  const tempDir = document.getElementById('cfg-temp-dir')?.textContent;
+
   localStorage.setItem('fdm_max_active', String(maxActive));
   localStorage.setItem('fdm_max_connections', String(maxConnections));
+  // The engine holds these in memory only, so the UI is what remembers them
+  // across restarts — same arrangement the connection counts already use.
+  if (downloadRoot && downloadRoot !== '—') localStorage.setItem('fdm_download_root', downloadRoot);
+  if (tempDir && tempDir !== '—') localStorage.setItem('fdm_temp_dir', tempDir);
+  localStorage.setItem('fdm_category_dirs', JSON.stringify(categoryDirs));
+
   try {
-    await invoke('update_config', { maxActive, maxConnections });
+    await invoke('update_config', {
+      maxActive,
+      maxConnections,
+      downloadRoot: downloadRoot && downloadRoot !== '—' ? downloadRoot : undefined,
+      tempDir: tempDir && tempDir !== '—' ? tempDir : undefined,
+      categoryDirs,
+    });
   } catch (err) {
     console.error('Failed to update config:', err);
+    alert(t('alert_folder_failed') + err);
   }
 }
 
 const cfgLanguage = document.getElementById('cfg-language');
+const cfgCategoryList = document.getElementById('cfg-category-list');
+
+// Native folder picker. The dialog plugin's JS wrapper is an npm package and
+// this app has no bundler, so call the plugin command directly — the same way
+// the window drag region does.
+async function pickFolder(defaultPath) {
+  try {
+    const picked = await invoke('plugin:dialog|open', {
+      options: { directory: true, multiple: false, recursive: false, defaultPath: defaultPath || undefined },
+    });
+    // The plugin returns null when the user cancels, and (depending on version)
+    // either a string or a {path} record when they choose.
+    if (!picked) return null;
+    if (typeof picked === 'string') return picked;
+    if (Array.isArray(picked)) return picked[0]?.path || picked[0] || null;
+    return picked.path || null;
+  } catch (err) {
+    console.error('Folder picker failed:', err);
+    return null;
+  }
+}
+
+// Category overrides live here between opening the dialog and applying it, so
+// the whole set can be sent at once — an override the user cleared has to be
+// absent from the map, not merely empty.
+let categoryDirs = {};
+
+function renderCategoryRows(categories) {
+  if (!cfgCategoryList) return;
+  cfgCategoryList.innerHTML = categories
+    .map((name) => {
+      const chosen = categoryDirs[name];
+      const label = chosen || t('settings_category_default');
+      return `
+        <div class="category-row" data-category="${escapeHtml(name)}">
+          <span class="category-name">${escapeHtml(t(`nav_${name.toLowerCase()}`))}</span>
+          <div class="category-path ${chosen ? '' : 'is-default'}" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+          <button type="button" class="btn-browse" data-action="pick">📂</button>
+          <button type="button" class="btn-browse" data-action="clear" ${chosen ? '' : 'disabled'}>✕</button>
+        </div>`;
+    })
+    .join('');
+}
+
+cfgCategoryList?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const row = btn.closest('.category-row');
+  const name = row?.dataset.category;
+  if (!name) return;
+
+  if (btn.dataset.action === 'clear') {
+    delete categoryDirs[name];
+  } else {
+    const dir = await pickFolder(categoryDirs[name]);
+    if (!dir) return;
+    categoryDirs[name] = dir;
+  }
+  renderCategoryRows(currentCategories);
+  await applySettings();
+});
+
+let currentCategories = [];
+
+document.getElementById('btn-browse-root')?.addEventListener('click', async () => {
+  const el = document.getElementById('cfg-download-root');
+  const dir = await pickFolder(el.textContent);
+  if (!dir) return;
+  el.textContent = dir;
+  await applySettings();
+});
+
+document.getElementById('btn-browse-temp')?.addEventListener('click', async () => {
+  const el = document.getElementById('cfg-temp-dir');
+  const dir = await pickFolder(el.textContent);
+  if (!dir) return;
+  el.textContent = dir;
+  await applySettings();
+});
 
 document.getElementById('btn-open-settings').addEventListener('click', async () => {
   try {
@@ -372,10 +474,13 @@ document.getElementById('btn-open-settings').addEventListener('click', async () 
     document.getElementById('cfg-temp-dir').textContent = cfg.tempDir || '—';
     if (cfg.maxActive) cfgMaxActive.value = String(cfg.maxActive);
     if (cfg.maxConnections) cfgMaxConn.value = String(cfg.maxConnections);
+    categoryDirs = cfg.categoryDirs || {};
+    currentCategories = cfg.categories || [];
+    renderCategoryRows(currentCategories);
   } catch (err) {
     console.error('Failed to load settings:', err);
   }
-  if (cfgLanguage && window.fdmI18n) cfgLanguage.value = window.fdmI18n.getLanguage();
+  window.fdmI18n?.populateSelect(cfgLanguage);
   settingsDialog.showModal();
 });
 
@@ -469,13 +574,27 @@ document.addEventListener('fdm-language-changed', () => {
 
 // ------------------------------------------------------------- Initialization
 async function init() {
-  // Restore saved performance settings
+  // Restore saved settings. The engine starts from its own defaults every
+  // launch, so anything the user chose has to be pushed back in before the
+  // first download resolves a destination.
   const savedConns = parseInt(localStorage.getItem('fdm_max_connections'), 10);
   const savedActive = parseInt(localStorage.getItem('fdm_max_active'), 10);
-  if (savedConns || savedActive) {
+  const savedRoot = localStorage.getItem('fdm_download_root');
+  const savedTemp = localStorage.getItem('fdm_temp_dir');
+  let savedCategoryDirs;
+  try {
+    savedCategoryDirs = JSON.parse(localStorage.getItem('fdm_category_dirs') || 'null');
+  } catch (_err) {
+    savedCategoryDirs = null;
+  }
+
+  if (savedConns || savedActive || savedRoot || savedTemp || savedCategoryDirs) {
     invoke('update_config', {
       maxConnections: savedConns || undefined,
       maxActive: savedActive || undefined,
+      downloadRoot: savedRoot || undefined,
+      tempDir: savedTemp || undefined,
+      categoryDirs: savedCategoryDirs || undefined,
     }).catch(console.error);
   }
 

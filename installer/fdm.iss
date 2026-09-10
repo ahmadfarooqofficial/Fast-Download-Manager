@@ -111,13 +111,139 @@ SignTool={#SignToolName}
 SignedUninstaller=yes
 #endif
 
+; Setup asks which language to use before the first wizard page. These are the
+; translations Inno Setup ships; the app's own UI language is separate and lives
+; in Settings, because a user who installs in English may still want the app in
+; their own language (and vice versa).
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
+Name: "czech"; MessagesFile: "compiler:Languages\Czech.isl"
+Name: "dutch"; MessagesFile: "compiler:Languages\Dutch.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
+Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
+Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"
+Name: "portuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
+Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
+
+; Our own wizard strings, per language. Anything a translation does not define
+; falls back to the english entry.
+[CustomMessages]
+english.TaskDesktopIcon=Create a &desktop shortcut
+english.TaskStartup=Start FDM when I sign in to Windows
+english.TaskAddToPath=Add the &fdm command to PATH (for terminal use)
+english.GroupShortcuts=Shortcuts:
+english.GroupStartup=Startup:
+english.GroupAdvanced=Advanced:
+
+arabic.TaskDesktopIcon=إنشاء اختصار على &سطح المكتب
+arabic.TaskStartup=تشغيل FDM عند تسجيل الدخول إلى Windows
+arabic.TaskAddToPath=إضافة الأمر &fdm إلى PATH (للاستخدام من الطرفية)
+arabic.GroupShortcuts=الاختصارات:
+arabic.GroupStartup=بدء التشغيل:
+arabic.GroupAdvanced=متقدم:
+
+czech.TaskDesktopIcon=Vytvořit zástupce na &ploše
+czech.TaskStartup=Spouštět FDM při přihlášení do Windows
+czech.TaskAddToPath=Přidat příkaz &fdm do PATH (pro terminál)
+czech.GroupShortcuts=Zástupci:
+czech.GroupStartup=Po spuštění:
+czech.GroupAdvanced=Pokročilé:
+
+dutch.TaskDesktopIcon=Een snelkoppeling op het &bureaublad maken
+dutch.TaskStartup=FDM starten wanneer ik me aanmeld bij Windows
+dutch.TaskAddToPath=De opdracht &fdm aan PATH toevoegen (voor de terminal)
+dutch.GroupShortcuts=Snelkoppelingen:
+dutch.GroupStartup=Opstarten:
+dutch.GroupAdvanced=Geavanceerd:
+
+french.TaskDesktopIcon=Créer un raccourci sur le &Bureau
+french.TaskStartup=Lancer FDM à l'ouverture de session Windows
+french.TaskAddToPath=Ajouter la commande &fdm au PATH (pour le terminal)
+french.GroupShortcuts=Raccourcis :
+french.GroupStartup=Démarrage :
+french.GroupAdvanced=Avancé :
+
+german.TaskDesktopIcon=Verknüpfung auf dem &Desktop erstellen
+german.TaskStartup=FDM bei der Anmeldung bei Windows starten
+german.TaskAddToPath=Befehl &fdm zum PATH hinzufügen (für das Terminal)
+german.GroupShortcuts=Verknüpfungen:
+german.GroupStartup=Autostart:
+german.GroupAdvanced=Erweitert:
+
+italian.TaskDesktopIcon=Crea un collegamento sul &desktop
+italian.TaskStartup=Avvia FDM all'accesso a Windows
+italian.TaskAddToPath=Aggiungi il comando &fdm al PATH (per il terminale)
+italian.GroupShortcuts=Collegamenti:
+italian.GroupStartup=Avvio:
+italian.GroupAdvanced=Avanzate:
+
+japanese.TaskDesktopIcon=デスクトップにショートカットを作成する(&D)
+japanese.TaskStartup=Windows へのサインイン時に FDM を起動する
+japanese.TaskAddToPath=PATH に &fdm コマンドを追加する (ターミナル用)
+japanese.GroupShortcuts=ショートカット:
+japanese.GroupStartup=スタートアップ:
+japanese.GroupAdvanced=詳細設定:
+
+korean.TaskDesktopIcon=바탕 화면에 바로 가기 만들기(&D)
+korean.TaskStartup=Windows에 로그인할 때 FDM 시작
+korean.TaskAddToPath=PATH에 &fdm 명령 추가 (터미널용)
+korean.GroupShortcuts=바로 가기:
+korean.GroupStartup=시작 프로그램:
+korean.GroupAdvanced=고급:
+
+polish.TaskDesktopIcon=Utwórz skrót na &pulpicie
+polish.TaskStartup=Uruchamiaj FDM po zalogowaniu do Windows
+polish.TaskAddToPath=Dodaj polecenie &fdm do PATH (do użytku w terminalu)
+polish.GroupShortcuts=Skróty:
+polish.GroupStartup=Autostart:
+polish.GroupAdvanced=Zaawansowane:
+
+portuguese.TaskDesktopIcon=Criar um atalho na &área de trabalho
+portuguese.TaskStartup=Iniciar o FDM ao entrar no Windows
+portuguese.TaskAddToPath=Adicionar o comando &fdm ao PATH (para o terminal)
+portuguese.GroupShortcuts=Atalhos:
+portuguese.GroupStartup=Inicialização:
+portuguese.GroupAdvanced=Avançado:
+
+russian.TaskDesktopIcon=Создать ярлык на &рабочем столе
+russian.TaskStartup=Запускать FDM при входе в Windows
+russian.TaskAddToPath=Добавить команду &fdm в PATH (для терминала)
+russian.GroupShortcuts=Ярлыки:
+russian.GroupStartup=Автозапуск:
+russian.GroupAdvanced=Дополнительно:
+
+spanish.TaskDesktopIcon=Crear un acceso directo en el &escritorio
+spanish.TaskStartup=Iniciar FDM al iniciar sesión en Windows
+spanish.TaskAddToPath=Añadir el comando &fdm al PATH (para la terminal)
+spanish.GroupShortcuts=Accesos directos:
+spanish.GroupStartup=Inicio:
+spanish.GroupAdvanced=Avanzado:
+
+turkish.TaskDesktopIcon=&Masaüstü kısayolu oluştur
+turkish.TaskStartup=Windows'a giriş yaptığımda FDM'yi başlat
+turkish.TaskAddToPath=&fdm komutunu PATH'e ekle (terminal için)
+turkish.GroupShortcuts=Kısayollar:
+turkish.GroupStartup=Başlangıç:
+turkish.GroupAdvanced=Gelişmiş:
+
+ukrainian.TaskDesktopIcon=Створити ярлик на &робочому столі
+ukrainian.TaskStartup=Запускати FDM під час входу у Windows
+ukrainian.TaskAddToPath=Додати команду &fdm до PATH (для термінала)
+ukrainian.GroupShortcuts=Ярлики:
+ukrainian.GroupStartup=Автозапуск:
+ukrainian.GroupAdvanced=Додатково:
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Shortcuts:"
-Name: "startup"; Description: "Start FDM when I sign in to Windows"; GroupDescription: "Startup:"
-Name: "addtopath"; Description: "Add the &fdm command to PATH (for terminal use)"; GroupDescription: "Advanced:"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:TaskDesktopIcon}"; GroupDescription: "{cm:GroupShortcuts}"
+Name: "startup"; Description: "{cm:TaskStartup}"; GroupDescription: "{cm:GroupStartup}"
+Name: "addtopath"; Description: "{cm:TaskAddToPath}"; GroupDescription: "{cm:GroupAdvanced}"; Flags: unchecked
 
 [Files]
 ; --- Engine and CLI. Always present; the build script refuses to run without it.
@@ -211,10 +337,35 @@ Type: files; Name: "{app}\manifests\{#NativeHostName}.json"
 Type: dirifempty; Name: "{app}\manifests"
 Type: dirifempty; Name: "{app}"
 
+; Unscoped entries apply to every language, so English stays the fallback for
+; the translations below that are not overridden — losing the Chrome extension
+; instruction would cost a user a working browser integration, which is worse
+; than reading it in English.
 [Messages]
 WelcomeLabel2=This will install [name/ver] on your computer.%n%nFDM splits every download across many connections and writes them straight to disk, so there is no reassembly step and a crash resumes instead of restarting.%n%nSetup will also install anything missing that FDM needs, including the Microsoft WebView2 runtime.
 FinishedLabelNoIcons=Setup finished installing [name].
 FinishedLabel=Setup finished installing [name].%n%nOne last step, and it is Chrome's rule rather than ours: open your browser and click Enable when it asks about the FDM extension. Chrome does not allow any installer to enable an extension for you.
+
+arabic.WelcomeLabel2=سيتم تثبيت [name/ver] على جهازك.%n%nيقسّم FDM كل عملية تنزيل عبر اتصالات متعددة ويكتبها مباشرة على القرص، فلا توجد مرحلة إعادة تجميع، وأي انقطاع يُستأنف بدل أن يبدأ من جديد.%n%nسيثبّت الإعداد أيضاً كل ما ينقص FDM، بما في ذلك بيئة تشغيل Microsoft WebView2.
+arabic.FinishedLabel=انتهى تثبيت [name].%n%nخطوة أخيرة، وهي من قواعد Chrome وليست منّا: افتح المتصفح وانقر «تمكين» عندما يسألك عن إضافة FDM. لا يسمح Chrome لأي مثبِّت بتمكين إضافة نيابةً عنك.
+
+french.WelcomeLabel2=[name/ver] va être installé sur votre ordinateur.%n%nFDM répartit chaque téléchargement sur de nombreuses connexions et écrit directement sur le disque : aucune étape de réassemblage, et une coupure reprend au lieu de tout recommencer.%n%nLe programme d'installation ajoutera également ce qui manque à FDM, y compris le runtime Microsoft WebView2.
+french.FinishedLabel=L'installation de [name] est terminée.%n%nUne dernière étape, imposée par Chrome et non par nous : ouvrez votre navigateur et cliquez sur Activer lorsqu'il vous interroge sur l'extension FDM. Chrome n'autorise aucun installateur à activer une extension à votre place.
+
+german.WelcomeLabel2=[name/ver] wird auf Ihrem Computer installiert.%n%nFDM verteilt jeden Download auf viele Verbindungen und schreibt ihn direkt auf die Festplatte — kein Zusammensetzen am Ende, und ein Abbruch wird fortgesetzt statt neu gestartet.%n%nSetup installiert außerdem alles Fehlende, was FDM benötigt, einschließlich der Microsoft-WebView2-Laufzeit.
+german.FinishedLabel=Die Installation von [name] ist abgeschlossen.%n%nEin letzter Schritt, und das ist Chromes Regel, nicht unsere: Öffnen Sie Ihren Browser und klicken Sie auf Aktivieren, wenn er nach der FDM-Erweiterung fragt. Chrome erlaubt es keinem Installationsprogramm, eine Erweiterung für Sie zu aktivieren.
+
+portuguese.WelcomeLabel2=O [name/ver] será instalado no seu computador.%n%nO FDM divide cada download em várias conexões e grava direto no disco, por isso não há etapa de remontagem e uma queda continua em vez de recomeçar.%n%nA instalação também adicionará o que faltar ao FDM, incluindo o runtime Microsoft WebView2.
+portuguese.FinishedLabel=A instalação do [name] foi concluída.%n%nFalta um passo, e é regra do Chrome, não nossa: abra o navegador e clique em Ativar quando ele perguntar sobre a extensão do FDM. O Chrome não permite que nenhum instalador ative uma extensão por você.
+
+russian.WelcomeLabel2=На ваш компьютер будет установлен [name/ver].%n%nFDM разбивает каждую загрузку на множество соединений и пишет их прямо на диск, поэтому нет этапа сборки, а обрыв продолжается с места остановки, а не начинается заново.%n%nУстановщик также добавит всё недостающее, включая среду выполнения Microsoft WebView2.
+russian.FinishedLabel=Установка [name] завершена.%n%nОстался последний шаг, и это правило Chrome, а не наше: откройте браузер и нажмите «Включить», когда он спросит о расширении FDM. Chrome не позволяет установщику включить расширение за вас.
+
+spanish.WelcomeLabel2=Se instalará [name/ver] en su equipo.%n%nFDM reparte cada descarga entre muchas conexiones y la escribe directamente en disco, así que no hay fase de reensamblado y un corte se reanuda en lugar de empezar de nuevo.%n%nEl instalador añadirá además lo que le falte a FDM, incluido el entorno de ejecución Microsoft WebView2.
+spanish.FinishedLabel=La instalación de [name] ha finalizado.%n%nQueda un último paso, y es norma de Chrome, no nuestra: abra el navegador y haga clic en Activar cuando le pregunte por la extensión de FDM. Chrome no permite que ningún instalador active una extensión por usted.
+
+turkish.WelcomeLabel2=[name/ver] bilgisayarınıza kurulacak.%n%nFDM her indirmeyi birçok bağlantıya böler ve doğrudan diske yazar; birleştirme aşaması yoktur ve kesinti baştan başlamak yerine kaldığı yerden devam eder.%n%nKurulum ayrıca Microsoft WebView2 çalışma zamanı dahil, FDM'nin eksik olan gereksinimlerini de yükler.
+turkish.FinishedLabel=[name] kurulumu tamamlandı.%n%nSon bir adım kaldı ve bu bizim değil Chrome'un kuralı: tarayıcınızı açın ve FDM uzantısını sorduğunda Etkinleştir'e tıklayın. Chrome hiçbir kurulum programının sizin yerinize bir uzantıyı etkinleştirmesine izin vermez.
 
 [Code]
 { ISPP treats any line whose first non-whitespace character is '#' as a

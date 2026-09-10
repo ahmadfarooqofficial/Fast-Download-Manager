@@ -28,6 +28,10 @@ document.addEventListener('mousedown', (e) => {
 
 let currentDownload = null;
 let userStarted = false; // Controls prompt vs active downloading view
+// Where this download will land: what the engine resolved, and what the user
+// picked instead. The chosen one wins and is never overwritten by a refresh.
+let resolvedDir = null;
+let chosenDir = null;
 
 // Formatters
 function formatBytes(bytes) {
@@ -244,7 +248,11 @@ function render(d) {
   if (el.promptUrl) el.promptUrl.value = d.url || '';
   if (el.promptFilename) el.promptFilename.value = d.filename || '';
   if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Video').toUpperCase();
-  if (el.promptPath) el.promptPath.value = d.path || t('dialog_downloads_folder');
+  // The real resolved folder, not a placeholder — the user is about to decide
+  // whether to accept it, so it has to be the truth.
+  if (el.promptPath && !chosenDir) {
+    el.promptPath.value = resolvedDir || (d.path ? d.path.replace(/[\\/][^\\/]*$/, '') : t('dialog_downloads_folder'));
+  }
 
   // If user started or download already started receiving bytes
   if (userStarted || (d.downloaded && d.downloaded > 0) || d.status === 'downloading') {
@@ -301,7 +309,10 @@ function render(d) {
     el.progressFill.style.width = '100%';
     el.progressFill.style.background = 'var(--fdm-surface-2)';
     el.progressFill.classList.add('shimmer');
-    el.status.textContent = t('dialog_status_connecting');
+    // While yt-dlp resolves a video there are no bytes to show, but it does
+    // report which step it is on — far better than a minute of one frozen
+    // "Connecting to server…".
+    el.status.textContent = d.stage ? t(`stage_${d.stage}`) : t('dialog_status_connecting');
     el.status.style.color = 'var(--fdm-info)';
     el.speed.textContent = '—';
     el.eta.textContent = '—';
@@ -344,6 +355,25 @@ el.btnMin?.addEventListener('click', () => {
 });
 el.btnClose?.addEventListener('click', () => {
   invoke('close_window').catch(console.error);
+});
+
+// Change where just this download goes, IDM style: the folder button opens a
+// native picker and the choice applies to this download only, leaving the
+// category's default alone.
+document.getElementById('prompt-btn-browse')?.addEventListener('click', async () => {
+  try {
+    const picked = await invoke('plugin:dialog|open', {
+      options: { directory: true, multiple: false, defaultPath: el.promptPath?.value || undefined },
+    });
+    if (!picked) return;
+    const dir = typeof picked === 'string' ? picked : (Array.isArray(picked) ? (picked[0]?.path || picked[0]) : picked.path);
+    if (!dir) return;
+    await invoke('set_target_dir', { id: downloadId, dir });
+    chosenDir = dir;
+    if (el.promptPath) el.promptPath.value = dir;
+  } catch (err) {
+    console.error('Could not change folder:', err);
+  }
 });
 
 // Prompt Action Buttons
@@ -457,6 +487,17 @@ document.addEventListener('fdm-language-changed', () => {
 
 // Initialization & Live Sync
 async function init() {
+  // Ask the engine where this would land before showing the prompt, so the
+  // "Save to" field is populated the moment the popup appears.
+  if (!isNaN(downloadId)) {
+    try {
+      resolvedDir = await invoke('get_target_dir', { id: downloadId });
+      if (resolvedDir && el.promptPath && !chosenDir) el.promptPath.value = resolvedDir;
+    } catch (err) {
+      console.debug('Could not resolve target dir:', err);
+    }
+  }
+
   async function refresh() {
     if (!isNaN(downloadId)) {
       try {

@@ -14,6 +14,13 @@ pub struct ConfigInfo {
     pub download_root: PathBuf,
     pub temp_dir: PathBuf,
     pub use_temp_dir: bool,
+    /// Per-category overrides, keyed by folder name ("Video", "Programs", …).
+    /// Only categories the user actually redirected appear here.
+    pub category_dirs: BTreeMap<String, PathBuf>,
+    /// Every category name the UI should offer a folder row for, in display
+    /// order. Sent from here so the settings screen cannot drift out of sync
+    /// with the engine's own list.
+    pub categories: Vec<String>,
 }
 
 #[tauri::command]
@@ -83,6 +90,11 @@ pub fn get_config(manager: State<'_, Arc<Manager>>) -> ConfigInfo {
         download_root: cfg.download_root.clone(),
         temp_dir: cfg.temp_dir.clone(),
         use_temp_dir: cfg.use_temp_dir,
+        category_dirs: cfg.category_dirs.clone(),
+        categories: fdm_core::Category::ALL
+            .iter()
+            .map(|c| c.folder().to_string())
+            .collect(),
     }
 }
 
@@ -91,6 +103,9 @@ pub fn update_config(
     manager: State<'_, Arc<Manager>>,
     max_active: Option<usize>,
     max_connections: Option<u32>,
+    download_root: Option<PathBuf>,
+    temp_dir: Option<PathBuf>,
+    category_dirs: Option<BTreeMap<String, PathBuf>>,
 ) -> Result<(), String> {
     if let Some(active) = max_active {
         manager.set_max_active(active);
@@ -98,7 +113,41 @@ pub fn update_config(
     if let Some(conns) = max_connections {
         manager.set_max_connections(conns);
     }
+    if let Some(root) = download_root {
+        // Fail loudly here rather than at the end of a download, when the bytes
+        // have nowhere to land.
+        std::fs::create_dir_all(&root).map_err(|e| format!("{}: {e}", root.display()))?;
+        manager.set_download_root(root);
+    }
+    if let Some(dir) = temp_dir {
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        manager.set_temp_dir(dir);
+    }
+    if let Some(dirs) = category_dirs {
+        for dir in dirs.values() {
+            std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        manager.set_category_dirs(dirs);
+    }
     Ok(())
+}
+
+/// Where a download will be saved if started now — shown in the popup so the
+/// user can see and change it before committing.
+#[tauri::command]
+pub fn get_target_dir(manager: State<'_, Arc<Manager>>, id: DownloadId) -> Option<PathBuf> {
+    manager.resolve_target_dir(id)
+}
+
+/// Redirect one download, leaving every other download's destination alone.
+#[tauri::command]
+pub fn set_target_dir(
+    manager: State<'_, Arc<Manager>>,
+    id: DownloadId,
+    dir: PathBuf,
+) -> Result<(), String> {
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    manager.set_target_dir(id, dir).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

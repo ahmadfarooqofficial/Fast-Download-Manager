@@ -226,6 +226,18 @@ impl Manager {
         self.engine.set_max_connections(conns);
     }
 
+    pub fn set_download_root(&self, root: PathBuf) {
+        self.engine.set_download_root(root);
+    }
+
+    pub fn set_temp_dir(&self, dir: PathBuf) {
+        self.engine.set_temp_dir(dir);
+    }
+
+    pub fn set_category_dirs(&self, dirs: std::collections::BTreeMap<String, PathBuf>) {
+        self.engine.set_category_dirs(dirs);
+    }
+
     pub fn set_max_active(&self, max_active: usize) {
         let max_active = max_active.clamp(1, 32);
         self.max_active.store(max_active, Ordering::Relaxed);
@@ -362,6 +374,59 @@ impl Manager {
     /// `.fdm` pair it left behind. Passing the parent as an explicit target is
     /// correct rather than a shortcut — the saved path already contains the
     /// category folder, so re-sorting it would nest one inside another.
+    /// Where this download will be saved if it starts right now.
+    ///
+    /// The popup shows this before the user commits, the way IDM does, so
+    /// "Save to" is a fact they can act on rather than a guess. Mirrors the
+    /// engine's own resolution order: an explicit choice for this download, then
+    /// a per-category folder, then the sorted root.
+    pub fn resolve_target_dir(&self, id: DownloadId) -> Option<PathBuf> {
+        let reg = self.reg.lock().unwrap();
+        let entry = reg.entries.get(&id)?;
+
+        // Already running or finished: the real answer is on disk.
+        if let Some(parent) = entry.path.as_ref().and_then(|p| p.parent()) {
+            return Some(parent.to_path_buf());
+        }
+        if let Some(dir) = reg.runtime.get(&id).and_then(|r| r.target_dir.clone()) {
+            return Some(dir);
+        }
+
+        let cfg = self.engine.config();
+        // Before the probe there is no category yet; the filename is the only
+        // hint available, which is exactly what the engine will start from too.
+        let category = entry
+            .category
+            .unwrap_or_else(|| fdm_core::categorize::classify(&entry.filename, None, &[]));
+        if let Some(dir) = cfg.category_dirs.get(category.folder()) {
+            return Some(dir.clone());
+        }
+        Some(if cfg.organize_by_type {
+            cfg.download_root.join(category.folder())
+        } else {
+            cfg.download_root.clone()
+        })
+    }
+
+    /// Send this one download somewhere other than its category's folder.
+    ///
+    /// Takes effect on the next start, which is why the popup can offer it while
+    /// the download is still sitting paused at the prompt.
+    pub fn set_target_dir(&self, id: DownloadId, dir: PathBuf) -> Result<()> {
+        let mut reg = self.reg.lock().unwrap();
+        if !reg.entries.contains_key(&id) {
+            return Err(ManagerError::NotFound(id));
+        }
+        match reg.runtime.get_mut(&id) {
+            Some(rt) => rt.target_dir = Some(dir),
+            None => {
+                reg.runtime
+                    .insert(id, Runtime::new(HeaderMap::new(), Some(dir)));
+            }
+        }
+        Ok(())
+    }
+
     pub fn resume(&self, id: DownloadId) -> Result<()> {
         let (url, generation, filename, target_dir, snapshot) = {
             let mut reg = self.reg.lock().unwrap();
@@ -637,7 +702,8 @@ impl Manager {
                 (req, rt.cancel.clone())
             };
 
-            let max_conns = engine.config().max_connections;
+            let engine_cfg = engine.config();
+            let max_conns = engine_cfg.max_connections;
 
             let result = if is_video_platform(url.as_str()) {
                 if find_tool("yt-dlp.exe").is_none() {
@@ -649,6 +715,7 @@ impl Manager {
                         url.as_str(),
                         filename.clone(),
                         target_dir.clone(),
+                        engine_cfg.clone(),
                         max_conns,
                         cancel,
                         reg.clone(),
@@ -786,6 +853,12 @@ fn finalise(
             tracing::debug!(id, generation, "ignoring the result of a superseded attempt");
             Emit::Nothing
         } else {
+            // Whatever this attempt settles into, it is no longer mid-extraction:
+            // a stage left behind here would keep claiming "Reading page…" on a
+            // row that has stopped.
+            if let Some(entry) = guard.entries.get_mut(&id) {
+                entry.stage = None;
+            }
             match (outcome, intent) {
                 // Removal wins over everything: the row is going away, so its
                 // status no longer matters.
@@ -1008,12 +1081,67 @@ fn parse_eta_str(s: &str) -> Option<u64> {
     }
 }
 
+/// Unpack yt-dlp ahead of time, in the background.
+///
+/// `yt-dlp.exe` is a PyInstaller bundle: the first launch extracts an entire
+/// Python runtime to a temp directory, and on a cold cache — with an antivirus
+/// reading every file as it lands — that alone can take longer than the download
+/// the user is waiting for. Running it once at startup moves that cost to a
+/// moment when nobody is watching, so the first real download starts warm.
+///
+/// Deliberately fire-and-forget: if it fails, the download path will surface a
+/// real error later, and startup must not block on a subprocess.
+pub fn prewarm_video_tools() {
+    std::thread::spawn(|| {
+        let Some(ytdlp) = find_tool("yt-dlp.exe") else { return };
+        let mut cmd = std::process::Command::new(ytdlp);
+        cmd.arg("--version");
+        cmd.stdout(std::process::Stdio::null());
+        cmd.stderr(std::process::Stdio::null());
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        }
+        if let Ok(mut child) = cmd.spawn() {
+            let _ = child.wait();
+            tracing::debug!("yt-dlp prewarmed");
+        }
+    });
+}
+
+/// Which stage of a video extraction a yt-dlp output line represents.
+///
+/// Returns a key, not a sentence: the UI translates it. `None` for the many
+/// lines that say nothing a user would want to read.
+fn stage_from_ytdlp_line(line: &str) -> Option<&'static str> {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("[merger]") || lower.contains("merging formats") {
+        Some("merging")
+    } else if lower.contains("[extractaudio]") || lower.contains("destination:") && lower.contains(".mp3") {
+        Some("converting")
+    } else if lower.contains("downloading 1 format") || lower.contains("format(s):") {
+        Some("starting")
+    } else if lower.contains("player api json")
+        || lower.contains("m3u8 information")
+        || lower.contains("player javascript")
+        || lower.contains("signature")
+    {
+        Some("formats")
+    } else if lower.contains("extracting url") || lower.contains("downloading webpage") {
+        Some("resolving")
+    } else {
+        None
+    }
+}
+
 async fn download_video_platform(
     id: DownloadId,
     generation: u64,
     url: &str,
     filename: Option<String>,
     target_dir: Option<PathBuf>,
+    engine_cfg: fdm_core::EngineConfig,
     max_conns: u32,
     cancel: CancelToken,
     reg: Arc<Mutex<Registry>>,
@@ -1047,9 +1175,19 @@ async fn download_video_platform(
         }
     }
 
+    // Videos used to hardcode ~/Downloads/FDM/Video, which quietly ignored both
+    // the configured root and any per-category folder — so a user who pointed
+    // Video at another drive still found their videos on C:.
     let default_dir = target_dir.unwrap_or_else(|| {
-        let home = std::env::var_os("USERPROFILE").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-        home.join("Downloads").join("FDM").join(if is_audio { "Music" } else { "Video" })
+        let folder = if is_audio { "Music" } else { "Video" };
+        if let Some(dir) = engine_cfg.category_dirs.get(folder) {
+            return dir.clone();
+        }
+        if engine_cfg.organize_by_type {
+            engine_cfg.download_root.join(folder)
+        } else {
+            engine_cfg.download_root.clone()
+        }
     });
     let _ = std::fs::create_dir_all(&default_dir);
 
@@ -1086,9 +1224,13 @@ async fn download_video_platform(
     let headers_c = headers;
 
     let outcome = tokio::task::spawn_blocking(move || -> fdm_core::Result<PathBuf> {
-        let mut cmd = std::process::Command::new(ytdlp_path);
+      // Fast path first, then the slower complete one. See `skip_hls` below.
+      let mut skip_hls = true;
+      loop {
+        let attempt = (|skip_hls: bool| -> fdm_core::Result<PathBuf> {
+        let mut cmd = std::process::Command::new(&ytdlp_path);
         cmd.env("PYTHONUNBUFFERED", "1");
-        
+
         let mut args: Vec<String> = vec![
             "--newline".into(),
             "--progress-template".into(),
@@ -1102,11 +1244,25 @@ async fn download_video_platform(
             "2".into(),
             "--file-access-retries".into(),
             "2".into(),
+            // A stalled connection during extraction is the difference between
+            // "slow" and "appears frozen". Fail fast enough to retry instead.
+            "--socket-timeout".into(),
+            "15".into(),
             "-N".into(),
             max_conns.clamp(4, 32).to_string(),
             "--concurrent-fragments".into(),
             "16".into(),
         ];
+
+        // Fetching the HLS manifest is the single slowest step of YouTube
+        // extraction — measured at 10.9s with it and 6.3s without, for an
+        // identical chosen format. We select DASH/progressive streams, so the
+        // manifest only matters for live content; `skip_hls` is false on the
+        // retry that a live URL falls back to.
+        if skip_hls {
+            args.push("--extractor-args".into());
+            args.push("youtube:skip=hls".into());
+        }
 
         if let Some(ref deno_path) = deno {
             args.push("--js-runtimes".into());
@@ -1141,7 +1297,7 @@ async fn download_video_platform(
         args.push("-f".into());
         args.push(format_arg.clone());
         args.push("-o".into());
-        args.push(output_template);
+        args.push(output_template.clone());
 
         // The directory can hold other files — a previous attempt, a second
         // download running at the same time — and yt-dlp preserves the
@@ -1151,7 +1307,7 @@ async fn download_video_platform(
         args.push("--print".into());
         args.push("after_move:FDM_PATH:%(filepath)s".into());
 
-        args.push(url_owned);
+        args.push(url_owned.clone());
         cmd.args(&args);
 
         cmd.stdout(std::process::Stdio::piped());
@@ -1258,6 +1414,9 @@ async fn download_video_platform(
                         let mut guard = reg_c.lock().unwrap();
                         if guard.is_current(id, generation) {
                             if let Some(entry) = guard.entries.get_mut(&id) {
+                                // Bytes are moving now; the progress bar says
+                                // everything the stage line was standing in for.
+                                entry.stage = None;
                                 entry.downloaded = display_downloaded;
                                 if display_total.is_some() {
                                     entry.total = display_total;
@@ -1272,6 +1431,23 @@ async fn download_video_platform(
                     }
                 }
             } else if !line.trim().is_empty() {
+                // Everything before the first progress tick — extracting the
+                // page, picking formats, merging afterwards — used to be
+                // swallowed here, leaving the UI on one unchanging
+                // "Connecting…" for the whole resolve. Translate the lines
+                // yt-dlp prints into a stage key so the user can see it moving.
+                if let Some(stage) = stage_from_ytdlp_line(&line) {
+                    let mut guard = reg_c.lock().unwrap();
+                    if guard.is_current(id, generation) {
+                        if let Some(entry) = guard.entries.get_mut(&id) {
+                            if entry.stage.as_deref() != Some(stage) {
+                                entry.stage = Some(stage.to_string());
+                                let snapshot = entry.clone();
+                                let _ = events_c.send(Event::Changed(snapshot));
+                            }
+                        }
+                    }
+                }
                 stdout_log.push_str(&line);
                 stdout_log.push('\n');
             }
@@ -1323,6 +1499,25 @@ async fn download_video_platform(
         };
 
         Ok(final_path)
+        })(skip_hls);
+
+        match attempt {
+            Ok(path) => return Ok(path),
+            Err(fdm_core::Error::Cancelled) => return Err(fdm_core::Error::Cancelled),
+            Err(err) => {
+                // A live stream has no DASH ladder to fall back on, so the fast
+                // path cannot resolve one. Anything else that failed will fail
+                // the same way twice — but one extra attempt costs a few seconds
+                // and buys back the URLs that genuinely need the manifest.
+                if skip_hls && !cancel_c.is_cancelled() {
+                    tracing::info!(%err, "retrying extraction with the HLS manifest");
+                    skip_hls = false;
+                    continue;
+                }
+                return Err(err);
+            }
+        }
+      }
     }).await.map_err(|e| fdm_core::Error::other(e.to_string()))??;
 
     let file_size = std::fs::metadata(&outcome).map(|m| m.len()).unwrap_or(0);

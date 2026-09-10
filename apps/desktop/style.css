@@ -526,6 +526,73 @@ button {
   max-width: 360px;
 }
 
+/* --------------------------------------------------------- Folder pickers */
+.path-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+}
+
+.path-row .setting-val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-browse {
+  flex: none;
+  padding: var(--fdm-space-1) var(--fdm-space-2);
+  border: 1px solid var(--fdm-border);
+  border-radius: var(--fdm-radius-sm);
+  background: var(--fdm-surface-2);
+  color: var(--fdm-fg);
+  font-size: var(--fdm-text-body);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-browse:hover {
+  border-color: var(--fdm-red);
+  background: var(--fdm-surface);
+}
+
+.category-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fdm-space-2);
+  margin-bottom: var(--fdm-space-2);
+}
+
+.category-row .category-name {
+  flex: none;
+  width: 96px;
+  font-size: var(--fdm-text-label);
+  color: var(--fdm-fg-muted);
+}
+
+.category-row .category-path {
+  flex: 1;
+  min-width: 0;
+  padding: var(--fdm-space-1) var(--fdm-space-2);
+  border: 1px solid var(--fdm-border);
+  border-radius: var(--fdm-radius-sm);
+  background: var(--fdm-bg);
+  color: var(--fdm-fg);
+  font-size: var(--fdm-text-caption);
+  font-family: var(--fdm-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A category with no override reads as a hint, not as a value. */
+.category-row .category-path.is-default {
+  color: var(--fdm-fg-subtle);
+  font-style: italic;
+}
+
 /* ------------------------------------------------------- Drag & Drop Overlay */
 .drop-overlay {
   display: none;

@@ -168,6 +168,23 @@ impl Engine {
         self.cfg.write().unwrap().max_connections = max_conns;
     }
 
+    pub fn set_download_root(&self, root: PathBuf) {
+        self.cfg.write().unwrap().download_root = root;
+    }
+
+    pub fn set_temp_dir(&self, dir: PathBuf) {
+        self.cfg.write().unwrap().temp_dir = dir;
+    }
+
+    /// Replace every per-category override at once.
+    ///
+    /// Wholesale rather than per-entry because the Settings screen edits them as
+    /// one set: a category the user cleared has to disappear from the map, and a
+    /// per-key setter cannot express a removal without a second call.
+    pub fn set_category_dirs(&self, dirs: std::collections::BTreeMap<String, PathBuf>) {
+        self.cfg.write().unwrap().category_dirs = dirs;
+    }
+
     /// Probe, then download. Falls back to a single sequential stream if the
     /// server turns out not to honour ranges.
     pub async fn download<F>(
@@ -510,6 +527,11 @@ impl Engine {
             return dir.clone();
         }
         let cfg = self.cfg.read().unwrap();
+        // An explicit per-category folder is a deliberate choice by the user and
+        // outranks the shared root, whether or not sorting is on.
+        if let Some(dir) = cfg.category_dirs.get(category.folder()) {
+            return dir.clone();
+        }
         if cfg.organize_by_type {
             cfg.download_root.join(category.folder())
         } else {
@@ -567,10 +589,24 @@ impl Engine {
         drop(file);
 
         let cfg = self.cfg.read().unwrap();
-        let final_dir = if !explicit_dir && cfg.organize_by_type && final_category != category {
-            let better = cfg.download_root.join(final_category.folder());
-            std::fs::create_dir_all(&better)?;
-            better
+        let final_dir = if !explicit_dir && final_category != category {
+            // The signature said this is really a video, not the "Other" the
+            // filename implied — so it belongs wherever videos go, which may be
+            // a folder the user chose rather than one under the root.
+            let better = match cfg.category_dirs.get(final_category.folder()) {
+                Some(dir) => Some(dir.clone()),
+                None if cfg.organize_by_type => {
+                    Some(cfg.download_root.join(final_category.folder()))
+                }
+                None => None,
+            };
+            match better {
+                Some(better) => {
+                    std::fs::create_dir_all(&better)?;
+                    better
+                }
+                None => dir.to_path_buf(),
+            }
         } else {
             dir.to_path_buf()
         };

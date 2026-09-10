@@ -1,6 +1,6 @@
 [package]
 name = "fdm-desktop"
-version = "0.1.11"
+version = "0.1.12"
 description = "Fast Download Manager"
 authors = ["Ahmad Farooq"]
 edition = "2021"
@@ -15,6 +15,8 @@ tauri-build = "2"
 
 [dependencies]
 tauri = { version = "2", features = ["tray-icon"] }
+# Native folder picker, for choosing where a category — or one download — lands.
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

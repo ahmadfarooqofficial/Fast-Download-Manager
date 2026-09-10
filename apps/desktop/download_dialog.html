@@ -6,8 +6,7 @@
   <title>FDM — Download</title>
   <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
-  <script src="i18n/en.js"></script>
-  <script src="i18n/ru.js"></script>
+  <script src="i18n/languages.js"></script>
   <script src="i18n.js"></script>
 </head>
 <body class="dialog-body" data-tauri-drag-region>
@@ -53,6 +52,7 @@
           <label class="prompt-label" data-i18n="dialog_save_to_label">Save To:</label>
           <div class="prompt-save-wrap">
             <input type="text" class="prompt-input prompt-path-input" id="prompt-path" readonly />
+            <button type="button" class="btn-browse" id="prompt-btn-browse" data-i18n-title="dialog_change_folder">📂</button>
           </div>
         </div>
       </div>

@@ -1,0 +1,10 @@
+# Statically link the MSVC C runtime.
+#
+# Without this, every binary we ship depends on VCRUNTIME140.dll / MSVCP140.dll
+# from the Visual C++ Redistributable, which is NOT present on a clean Windows
+# install. Users hit "The code execution cannot proceed because VCRUNTIME140.dll
+# was not found" the moment they run the app. Linking the runtime in removes the
+# dependency entirely, so the installer does not have to ship or chain a
+# redistributable.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

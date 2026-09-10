@@ -37,9 +37,14 @@ async fn main() {
     });
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(Arc::clone(&manager))
         .setup(move |app| {
             let app_handle = app.handle().clone();
+
+            // Pay yt-dlp's first-run unpack cost now, while the user is still
+            // looking at the window opening, rather than on their first video.
+            fdm_manager::prewarm_video_tools();
 
             // Set up system tray
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -131,6 +136,8 @@ async fn main() {
             clear_finished,
             get_config,
             update_config,
+            get_target_dir,
+            set_target_dir,
             open_file,
             open_folder,
             minimize_window,

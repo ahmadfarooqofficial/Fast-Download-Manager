@@ -74,6 +74,15 @@ pub struct DownloadEntry {
     pub category: Option<Category>,
     /// Human-readable reason this failed. Set only alongside [`Status::Failed`].
     pub error: Option<String>,
+    /// What a video extraction is doing right now, while no bytes are moving
+    /// yet: `resolving`, `formats`, `starting`, `merging`, `converting`.
+    ///
+    /// A key rather than a sentence, because the UI ships in a dozen languages
+    /// and translating a Rust-side English string in the frontend would mean
+    /// matching on prose. `None` for ordinary HTTP downloads, which reach the
+    /// first progress tick fast enough to need no interim message.
+    #[serde(default)]
+    pub stage: Option<String>,
     /// True when stopping and starting again would continue rather than restart.
     /// Drives whether the UI offers "Resume" or "Restart".
     pub resumable: bool,
@@ -97,6 +106,7 @@ impl DownloadEntry {
             active_connections: 0,
             category: None,
             error: None,
+            stage: None,
             resumable: false,
             added_at: now_secs(),
             finished_at: None,
