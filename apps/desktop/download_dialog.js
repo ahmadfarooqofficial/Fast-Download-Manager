@@ -457,13 +457,8 @@ el.celebrateBtnFolder?.addEventListener('click', async () => {
   }
 });
 
-el.celebrateDragChip?.addEventListener('dragstart', (e) => {
-  if (currentDownload?.path) {
-    e.dataTransfer.setData('text/plain', currentDownload.path);
-    e.dataTransfer.setData('text/uri-list', `file:///${currentDownload.path.replace(/\\/g, '/')}`);
-    e.dataTransfer.effectAllowed = 'copyMove';
-  }
-});
+// Drag the finished file straight out to Explorer, the desktop or another app.
+window.fdmDragOut?.makeDraggable(el.celebrateDragChip, () => currentDownload?.path);
 
 el.celebrateDragChip?.addEventListener('click', async () => {
   if (currentDownload?.path) {

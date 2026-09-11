@@ -129,9 +129,12 @@
 
   /* --------------------------------------------------------------- layout */
 
-  --fdm-titlebar-h: 40px;
-  --fdm-sidebar-w: 220px;
-  --fdm-row-h: 56px;
+  /* Compact by default. A download manager is a utility window that sits open
+     beside real work, not something to fill a monitor with — on a large screen
+     the old 40/220/56 made the same six rows occupy half the desktop. */
+  --fdm-titlebar-h: 34px;
+  --fdm-sidebar-w: 186px;
+  --fdm-row-h: 46px;
   --fdm-progress-h: 4px;         /* in list rows */
   --fdm-progress-h-detail: 6px;  /* in the detail panel */
   --fdm-z-dropdown: 100;

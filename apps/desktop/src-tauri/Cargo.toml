@@ -1,6 +1,6 @@
 [package]
 name = "fdm-desktop"
-version = "0.1.13"
+version = "0.1.14"
 description = "Fast Download Manager"
 authors = ["Ahmad Farooq"]
 edition = "2021"
@@ -17,6 +17,10 @@ tauri-build = "2"
 tauri = { version = "2", features = ["tray-icon"] }
 # Native folder picker, for choosing where a category — or one download — lands.
 tauri-plugin-dialog = "2"
+# Dragging a finished file out of the popup and into Explorer, the desktop, or
+# another app — the way IDM does. An HTML5 dragstart cannot do this: the shell
+# needs a real OLE drag carrying CF_HDROP, which this starts natively.
+tauri-plugin-drag = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }

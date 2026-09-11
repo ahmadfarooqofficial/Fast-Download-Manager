@@ -3,9 +3,8 @@
    Dark-only, red + black SaaS desktop interface
    ========================================================================== */
 
-:root {
-  --fdm-sidebar-w: 200px;
-}
+/* Layout metrics live in tokens.css — redeclaring them here silently
+   overrode the token and made it look like the token did nothing. */
 
 html, body {
   margin: 0;
@@ -206,8 +205,8 @@ html, body {
 
 /* ----------------------------------------------------------------- Toolbar */
 .toolbar {
-  height: 48px;
-  padding: 0 var(--fdm-space-4);
+  height: 40px;
+  padding: 0 var(--fdm-space-3);
   background: var(--fdm-surface);
   border-bottom: 1px solid var(--fdm-border);
   display: flex;
@@ -353,11 +352,11 @@ button {
 .download-row {
   background: var(--fdm-surface);
   border: 1px solid var(--fdm-border);
-  border-radius: var(--fdm-radius-lg);
-  padding: var(--fdm-space-3) var(--fdm-space-4);
+  border-radius: var(--fdm-radius-md);
+  padding: var(--fdm-space-2) var(--fdm-space-3);
   display: flex;
   flex-direction: column;
-  gap: var(--fdm-space-2);
+  gap: 6px;
   transition: border-color var(--fdm-duration-fast), box-shadow var(--fdm-duration-fast);
 }
 

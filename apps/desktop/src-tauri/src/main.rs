@@ -5,6 +5,32 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager as _};
 
+/// Open at a size that suits the monitor, then centre it.
+///
+/// A fixed 1000x700 is two different windows depending on where it lands: most
+/// of a laptop screen, and a stamp in the corner of a 4K panel. FDM is a utility
+/// that sits open beside real work, so it takes a modest share of whatever
+/// screen it finds and is clamped so it never grows unwieldy or shrinks below
+/// the point where the list is readable.
+fn size_to_screen(win: &tauri::WebviewWindow) {
+    const MIN_W: f64 = 860.0;
+    const MIN_H: f64 = 560.0;
+    const MAX_W: f64 = 1160.0;
+    const MAX_H: f64 = 760.0;
+
+    let Ok(Some(monitor)) = win.current_monitor() else { return };
+    let scale = monitor.scale_factor();
+    let screen = monitor.size().to_logical::<f64>(scale);
+
+    // Slightly wider share than tall: the list wants horizontal room for long
+    // file names, but vertical height past a dozen rows just adds emptiness.
+    let w = (screen.width * 0.58).clamp(MIN_W, MAX_W).min(screen.width - 80.0);
+    let h = (screen.height * 0.68).clamp(MIN_H, MAX_H).min(screen.height - 80.0);
+
+    let _ = win.set_size(tauri::LogicalSize::new(w, h));
+    let _ = win.center();
+}
+
 use fdm_desktop::commands::*;
 use fdm_manager::Manager;
 
@@ -38,6 +64,7 @@ async fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_drag::init())
         .manage(Arc::clone(&manager))
         .setup(move |app| {
             let app_handle = app.handle().clone();
@@ -108,6 +135,7 @@ async fn main() {
             let is_background = std::env::args().any(|arg| arg == "--background" || arg == "--silent" || arg == "-b");
             if !is_background {
                 if let Some(win) = app.get_webview_window("main") {
+                    size_to_screen(&win);
                     let _ = win.show();
                     let _ = win.set_focus();
                 }

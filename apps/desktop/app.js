@@ -280,7 +280,7 @@ function render() {
     }
   } else {
     listEl.innerHTML = filtered.map(d => `
-      <div class="download-row" data-id="${d.id}" data-status="${(d.status || 'queued').toLowerCase()}" ondblclick="window.fdm.openDialog(${d.id})" title="Double click to open download window">
+      <div class="download-row" data-id="${d.id}" data-status="${(d.status || 'queued').toLowerCase()}" ${d.status === 'completed' && d.path ? 'draggable="true"' : ''} ondblclick="window.fdm.openDialog(${d.id})" title="Double click to open download window">
         ${getRowHtml(d)}
       </div>
     `).join('');
@@ -565,6 +565,18 @@ document.addEventListener('drop', (e) => {
   invoke('add_download', { url, headers: {} }).catch(err => {
     alert('Failed to add download: ' + err);
   });
+});
+
+// A finished row drags its file out to Explorer or the desktop, like the popup's
+// chip does. Delegated from the list, because rows are rebuilt constantly and
+// per-row listeners would be re-attached on every render.
+listEl?.addEventListener('dragstart', (e) => {
+  const row = e.target.closest('.download-row');
+  if (!row) return;
+  const d = downloads.find((x) => String(x.id) === row.dataset.id);
+  if (!d || d.status !== 'completed' || !d.path) return;
+  e.preventDefault();
+  window.fdmDragOut?.startFileDrag(d.path);
 });
 
 // Dynamically-generated row markup (status text, action buttons) isn't

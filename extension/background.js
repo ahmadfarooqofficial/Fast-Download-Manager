@@ -676,10 +676,46 @@ async function refreshBadge() {
   try {
     await chrome.action.setBadgeText({ text });
     await chrome.action.setBadgeBackgroundColor({ color: colour });
+
+    // Grey the icon out and slash it while capture is off. There is no popup to
+    // open any more, so the icon itself has to say whether the extension is
+    // doing anything — a badge alone is easy to miss at toolbar size.
+    const off = !capturePolicy.enabled;
+    await chrome.action.setIcon({
+      path: {
+        16: off ? 'icons/icon-off-16.png' : 'icons/icon-16.png',
+        32: off ? 'icons/icon-off-32.png' : 'icons/icon-32.png',
+        48: off ? 'icons/icon-off-48.png' : 'icons/icon-48.png',
+        128: off ? 'icons/icon-off-128.png' : 'icons/icon-128.png',
+      },
+    });
+    await chrome.action.setTitle({
+      title: off
+        ? 'FDM — download capture is OFF (click to turn on)'
+        : 'FDM — capturing downloads (click to turn off)',
+    });
   } catch {
     // The action can be unavailable while the worker is starting up.
   }
 }
+
+// Clicking the toolbar icon toggles capture.
+//
+// The extension deliberately has no UI of its own: FDM's own window is the
+// place to manage downloads, and a second, smaller version of that list inside
+// a popup was only ever a way to get the two out of sync. That leaves the icon
+// with exactly one job, which is the one people expect from a toolbar button —
+// turn this thing on and off.
+chrome.action.onClicked.addListener(async () => {
+  const next = !capturePolicy.enabled;
+  await setSettings({ enabled: next });
+  notify(
+    next ? 'FDM is capturing downloads' : 'FDM capture paused',
+    next
+      ? 'Downloads started in the browser will open in FDM.'
+      : 'Downloads will be handled by the browser until you switch capture back on.'
+  );
+});
 
 function notify(title, message) {
   chrome.notifications
