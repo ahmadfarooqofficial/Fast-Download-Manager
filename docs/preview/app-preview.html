@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDM — Fast Download Manager</title>
+  <link rel="stylesheet" href="../../apps/desktop/tokens.css">
+  <link rel="stylesheet" href="../../apps/desktop/style.css">
+  <script src="../../apps/desktop/i18n/languages.js"></script>
+  <script src="../../apps/desktop/i18n.js"></script>
+  <script src="../../apps/desktop/drag_out.js"></script>
+  
+<script>
+(() => {
+  // Stand in for the Tauri bridge so the real app.js runs in a plain browser.
+  const DOWNLOADS = [{"id":1,"filename":"ubuntu-24.04.1-desktop-amd64.iso","url":"https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso","status":"downloading","total":6115318784,"downloaded":3837652992,"speed_bps":50553651,"eta_secs":45,"segments":32,"active_connections":32,"category":"Programs","resumable":true},{"id":2,"filename":"Blender 4.2 — Full Feature Reveal (2160p).mp4","url":"https://www.youtube.com/watch?v=r1TCiLgN2Lo","status":"downloading","total":1476395008,"downloaded":221249536,"speed_bps":18874368,"eta_secs":66,"segments":16,"active_connections":16,"category":"Video","resumable":true},{"id":3,"filename":"annual-report-2026.pdf","url":"https://example.com/reports/annual-report-2026.pdf","status":"completed","total":8471552,"downloaded":8471552,"speed_bps":0,"segments":8,"category":"Documents","path":"C:UsersYouDownloadsFDMDocumentsannual-report-2026.pdf","resumable":false},{"id":4,"filename":"godot-4.4-stable-win64.zip","url":"https://downloads.godotengine.org/godot-4.4-stable-win64.zip","status":"paused","total":134217728,"downloaded":78643200,"speed_bps":0,"segments":16,"category":"Compressed","resumable":true},{"id":5,"filename":"interstellar-soundtrack.mp3","url":"https://example.com/audio/interstellar-soundtrack.mp3","status":"completed","total":14680064,"downloaded":14680064,"speed_bps":0,"segments":8,"category":"Music","path":"C:UsersYouDownloadsFDMMusicinterstellar-soundtrack.mp3","resumable":false}];
+  const CONFIG = {
+    maxActive: 4, maxConnections: 32,
+    downloadRoot: 'C:\Users\You\Downloads\FDM',
+    tempDir: 'C:\Users\You\AppData\Local\FDM\Temp',
+    useTempDir: true, categoryDirs: {},
+    categories: ['Documents','Video','Music','Images','Compressed','Programs','Other'],
+  };
+  const handlers = {
+    list_downloads: () => DOWNLOADS,
+    get_config: () => CONFIG,
+    get_download: ({ id }) => DOWNLOADS.find(d => d.id === id) || null,
+  };
+  const invoke = async (cmd, args) => (handlers[cmd] ? handlers[cmd](args || {}) : null);
+  window.__TAURI__ = { core: { invoke }, event: { listen: async () => () => {} } };
+  window.__TAURI_INTERNALS__ = { invoke };
+})();
+</script>
+  <script type="module" src="../../apps/desktop/app.js" defer></script>
+</head>
+<body>
+  <!-- Custom Windows Titlebar -->
+  <header data-tauri-drag-region class="titlebar">
+    <div class="titlebar-brand" data-tauri-drag-region>
+      <svg class="brand-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M12 6V16M12 16L8 12M12 16L16 12" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">FDM</span>
+      <span class="brand-subtitle">Fast Download Manager</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="titlebar-minimize" data-i18n-title="titlebar_minimize" data-i18n-aria-label="titlebar_minimize" title="Minimize" aria-label="Minimize">
+        <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+      </button>
+      <button class="titlebar-btn" id="titlebar-maximize" data-i18n-title="titlebar_maximize" data-i18n-aria-label="titlebar_maximize" title="Maximize" aria-label="Maximize">
+        <svg width="10" height="10" viewBox="0 0 10 10"><rect width="9" height="9" x="0.5" y="0.5" fill="none" stroke="currentColor"/></svg>
+      </button>
+      <button class="titlebar-btn btn-close" id="titlebar-close" data-i18n-title="titlebar_close" data-i18n-aria-label="titlebar_close" title="Close" aria-label="Close">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- App Layout -->
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <nav class="category-nav">
+        <div class="nav-header" data-i18n="nav_downloads">Downloads</div>
+        <button class="nav-item active" data-category="all">
+          <span class="nav-label" data-i18n="nav_all">All Downloads</span>
+          <span class="nav-count" id="count-all">0</span>
+        </button>
+        <button class="nav-item" data-category="active">
+          <span class="nav-label" data-i18n="nav_active">Active</span>
+          <span class="nav-count" id="count-active">0</span>
+        </button>
+        <button class="nav-item" data-category="completed">
+          <span class="nav-label" data-i18n="nav_completed">Completed</span>
+          <span class="nav-count" id="count-completed">0</span>
+        </button>
+        <button class="nav-item" data-category="paused">
+          <span class="nav-label" data-i18n="nav_paused">Paused / Stopped</span>
+          <span class="nav-count" id="count-paused">0</span>
+        </button>
+
+        <div class="nav-header" data-i18n="nav_categories">Categories</div>
+        <button class="nav-item" data-category="video">
+          <span class="nav-label" data-i18n="nav_video">Video</span>
+          <span class="nav-count" id="count-video">0</span>
+        </button>
+        <button class="nav-item" data-category="music">
+          <span class="nav-label" data-i18n="nav_music">Music</span>
+          <span class="nav-count" id="count-music">0</span>
+        </button>
+        <button class="nav-item" data-category="documents">
+          <span class="nav-label" data-i18n="nav_documents">Documents</span>
+          <span class="nav-count" id="count-documents">0</span>
+        </button>
+        <button class="nav-item" data-category="programs">
+          <span class="nav-label" data-i18n="nav_programs">Programs</span>
+          <span class="nav-count" id="count-programs">0</span>
+        </button>
+        <button class="nav-item" data-category="compressed">
+          <span class="nav-label" data-i18n="nav_compressed">Compressed</span>
+          <span class="nav-count" id="count-compressed">0</span>
+        </button>
+        <button class="nav-item" data-category="other">
+          <span class="nav-label" data-i18n="nav_other">Other</span>
+          <span class="nav-count" id="count-other">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn-settings" id="btn-open-settings" data-i18n-title="nav_settings" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span data-i18n="nav_settings">Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <button class="btn-primary" id="btn-add">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1V13M1 7H13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span data-i18n="toolbar_add_url">Add URL</span>
+        </button>
+
+        <div class="toolbar-divider"></div>
+
+        <button class="btn-toolbar" id="btn-pause-all" data-i18n-title="toolbar_pause_all_title" title="Pause all active downloads">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1"/>
+            <rect x="14" y="4" width="4" height="16" rx="1"/>
+          </svg>
+          <span data-i18n="toolbar_pause_all">Pause All</span>
+        </button>
+
+        <button class="btn-toolbar" id="btn-resume-all" data-i18n-title="toolbar_resume_all_title" title="Resume all paused downloads">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 3L19 12L5 21V3Z"/>
+          </svg>
+          <span data-i18n="toolbar_resume_all">Resume All</span>
+        </button>
+
+        <button class="btn-toolbar" id="btn-clear" data-i18n-title="toolbar_clear_finished_title" title="Clear completed rows from list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6H21M19 6L18 20H6L5 6M8 6V4H16V6"/>
+          </svg>
+          <span data-i18n="toolbar_clear_finished">Clear Finished</span>
+        </button>
+
+        <div class="spacer"></div>
+
+        <div class="search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21L16.65 16.65"/>
+          </svg>
+          <input type="text" id="search-input" data-i18n-placeholder="search_placeholder" placeholder="Search downloads...">
+        </div>
+      </div>
+
+      <!-- Download List -->
+      <div class="download-list" id="download-list">
+        <!-- Download rows injected by app.js -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon-wrap">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20 17V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V17" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2 class="empty-title" data-i18n="empty_title">No downloads in this view</h2>
+        <p class="empty-desc" data-i18n="empty_desc">Add a URL directly or start a download in Chrome with the FDM extension.</p>
+        <button class="btn-primary" id="btn-empty-add" data-i18n="empty_add">Add Download</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Drag-and-drop overlay: shown while a link is being dragged over the window -->
+  <div class="drop-overlay" id="drop-overlay">
+    <div class="drop-overlay-card">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 3V15M12 15L7 10M12 15L17 10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 17V19C20 20.1046 19.1046 21 18 21H6C4.89543 21 4 20.1046 4 19V17" stroke-linecap="round"/>
+      </svg>
+      <span data-i18n="drop_hint">Drop link to start download</span>
+    </div>
+  </div>
+
+  <!-- Add URL Dialog -->
+  <dialog class="modal-dialog" id="add-dialog">
+    <form method="dialog" id="add-form" class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" data-i18n="add_dialog_title">Add New Download</h3>
+        <button type="button" class="btn-icon" id="btn-add-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="add-url" data-i18n="add_dialog_url_label">URL</label>
+          <input type="url" id="add-url" data-i18n-placeholder="add_dialog_url_placeholder" placeholder="https://example.com/large-file.zip" required autofocus>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-add-cancel" data-i18n="add_dialog_cancel">Cancel</button>
+        <button type="submit" class="btn-primary" data-i18n="add_dialog_submit">Download</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Settings Dialog -->
+  <dialog class="modal-dialog" id="settings-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" data-i18n="settings_title">Settings</h3>
+        <button type="button" class="btn-icon" id="btn-settings-close">✕</button>
+      </div>
+      <div class="modal-body settings-body">
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_locations">Locations</h4>
+          <div class="setting-item">
+            <label class="setting-label" data-i18n="settings_download_folder">Download Folder</label>
+            <div class="path-row">
+              <div class="setting-val fdm-selectable" id="cfg-download-root">—</div>
+              <button type="button" class="btn-browse" id="btn-browse-root" data-i18n-title="settings_browse">📂</button>
+            </div>
+            <p class="setting-hint" data-i18n="settings_download_folder_hint">Files are automatically categorized into subfolders (Video, Music, Documents, etc.)</p>
+          </div>
+          <div class="setting-item">
+            <label class="setting-label" data-i18n="settings_temp_folder">Temporary Folder</label>
+            <div class="path-row">
+              <div class="setting-val fdm-selectable" id="cfg-temp-dir">—</div>
+              <button type="button" class="btn-browse" id="btn-browse-temp" data-i18n-title="settings_browse">📂</button>
+            </div>
+            <p class="setting-hint" data-i18n="settings_temp_folder_hint">Partial data is assembled here during active download.</p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_category_folders">Folder per category</h4>
+          <!-- One row per category, built by app.js from the engine's own list. -->
+          <div id="cfg-category-list"></div>
+          <p class="setting-hint" data-i18n="settings_category_folders_hint">Leave a category empty to keep it inside the download folder above.</p>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_performance">Performance & Acceleration</h4>
+          <div class="setting-row">
+            <div class="setting-col">
+              <label class="setting-label" for="cfg-max-active" data-i18n="settings_max_active_label">Max Active Downloads</label>
+              <select class="setting-select" id="cfg-max-active">
+                <option value="1" data-i18n="settings_max_active_1">1 Active</option>
+                <option value="2" data-i18n="settings_max_active_2">2 Active</option>
+                <option value="4" selected data-i18n="settings_max_active_4">4 Active (Default)</option>
+                <option value="8" data-i18n="settings_max_active_8">8 Active</option>
+                <option value="16" data-i18n="settings_max_active_16">16 Active</option>
+              </select>
+            </div>
+            <div class="setting-col">
+              <label class="setting-label" for="cfg-max-conn" data-i18n="settings_max_conn_label">Parallel Streams / Connections</label>
+              <select class="setting-select" id="cfg-max-conn">
+                <option value="8" data-i18n="settings_max_conn_8">8 Streams (Standard)</option>
+                <option value="16" data-i18n="settings_max_conn_16">16 Streams (Fast)</option>
+                <option value="24" data-i18n="settings_max_conn_24">24 Streams (Very Fast)</option>
+                <option value="32" selected data-i18n="settings_max_conn_32">32 Streams (Max Turbo — Recommended)</option>
+                <option value="48" data-i18n="settings_max_conn_48">48 Streams (Ultra Acceleration)</option>
+                <option value="64" data-i18n="settings_max_conn_64">64 Streams (Monster Hyper-Speed)</option>
+              </select>
+            </div>
+          </div>
+          <p class="setting-hint" style="margin-top: 8px;" data-i18n="settings_performance_hint">Dynamic multi-threaded chunk splitting applies to all direct files and media platform streams.</p>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_language">Language</h4>
+          <div class="setting-item">
+            <!-- Options are filled from i18n/languages.js so adding a
+                 language never means touching this file. -->
+            <select class="setting-select" id="cfg-language"></select>
+            <p class="setting-hint" data-i18n="settings_language_hint">Changes apply immediately, no restart required.</p>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h4 class="settings-heading" data-i18n="settings_about">About</h4>
+          <p class="about-text" data-i18n-html="settings_about_text">
+            <strong>FDM — Fast Download Manager</strong><br>
+            A high-performance parallel download manager for Windows.<br>
+            Free, open source, no telemetry.
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-primary" id="btn-settings-ok" data-i18n="settings_done">Done</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FDM — Download</title>
+  <link rel="stylesheet" href="../../apps/desktop/tokens.css">
+  <link rel="stylesheet" href="../../apps/desktop/style.css">
+  <script src="../../apps/desktop/i18n/languages.js"></script>
+  <script src="../../apps/desktop/i18n.js"></script>
+  <script src="../../apps/desktop/drag_out.js"></script>
+
+<script>
+(() => {
+  const ACTIVE = {"id":1,"filename":"ubuntu-24.04.1-desktop-amd64.iso","url":"https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso","status":"downloading","total":6115318784,"downloaded":3837652992,"speed_bps":50553651,"eta_secs":45,"segments":32,"active_connections":32,"category":"Programs","resumable":true,"path":"C:\\Users\\You\\Downloads\\FDM\\Programs\\ubuntu-24.04.1-desktop-amd64.iso"};
+  const invoke = async (cmd) => (cmd === 'get_download' ? ACTIVE : (cmd === 'get_target_dir' ? ACTIVE.path : null));
+  window.__TAURI__ = { core: { invoke }, event: { listen: async () => () => {} } };
+  window.__TAURI_INTERNALS__ = { invoke };
+})();
+</script>
+</head>
+<body class="dialog-body" data-tauri-drag-region>
+  <!-- Custom Drag Titlebar -->
+  <header data-tauri-drag-region class="titlebar dialog-titlebar">
+    <div class="titlebar-brand" data-tauri-drag-region>
+      <svg class="brand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 7V17L12 22L21 17V7L12 2Z" stroke="#e50914" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M12 6V16M12 16L8 12M12 16L16 12" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name" data-tauri-drag-region>FDM</span>
+      <span class="brand-subtitle" id="dialog-title-text" data-tauri-drag-region>Download File Info</span>
+    </div>
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" id="dialog-minimize" data-i18n-title="titlebar_minimize" data-i18n-aria-label="titlebar_minimize" title="Minimize" aria-label="Minimize">
+        <svg width="10" height="1" viewBox="0 0 10 1"><rect width="10" height="1" fill="currentColor"/></svg>
+      </button>
+      <button class="titlebar-btn btn-close" id="dialog-close" data-i18n-title="titlebar_close" data-i18n-aria-label="titlebar_close" title="Close" aria-label="Close">
+        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" stroke-width="1.2"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- IDM Style Dialog Content -->
+  <main class="dialog-content" data-tauri-drag-region>
+    
+    <!-- 1. PROMPT / START DOWNLOAD VIEW (Classic IDM File Info) -->
+    <div id="view-prompt" class="dialog-view prompt-view">
+      <div class="prompt-card">
+        <div class="prompt-row">
+          <label class="prompt-label" data-i18n="dialog_url_label">URL:</label>
+          <input type="text" class="prompt-input" id="prompt-url" readonly />
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label" data-i18n="dialog_category_label">Category:</label>
+          <span class="prompt-badge" id="prompt-category">Video</span>
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label" data-i18n="dialog_filename_label">File Name:</label>
+          <input type="text" class="prompt-input prompt-filename-input" id="prompt-filename" />
+        </div>
+        <div class="prompt-row">
+          <label class="prompt-label" data-i18n="dialog_save_to_label">Save To:</label>
+          <div class="prompt-save-wrap">
+            <input type="text" class="prompt-input prompt-path-input" id="prompt-path" readonly />
+            <button type="button" class="btn-browse" id="prompt-btn-browse" data-i18n-title="dialog_change_folder">📂</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons to Start or Queue -->
+      <footer class="dialog-actions prompt-actions">
+        <div class="dialog-actions-left">
+          <button class="btn btn-secondary" id="prompt-btn-later" data-i18n="dialog_download_later">
+            Download Later
+          </button>
+        </div>
+        <div class="dialog-actions-right">
+          <button class="btn btn-primary btn-start-download" id="prompt-btn-start">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span data-i18n="dialog_start_download">Start Download</span>
+          </button>
+          <button class="btn btn-danger" id="prompt-btn-cancel" data-i18n="add_dialog_cancel">
+            Cancel
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 2. ACTIVE / DOWNLOADING PROGRESS VIEW -->
+    <div id="view-active" class="dialog-view" style="display: none;">
+      <!-- File Header Card -->
+      <div class="dialog-file-card" data-tauri-drag-region>
+        <div class="dialog-file-icon" id="dlg-file-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+        </div>
+        <div class="dialog-file-info" data-tauri-drag-region>
+          <div class="dialog-filename" id="dlg-filename">Connecting…</div>
+          <div class="dialog-url" id="dlg-url">—</div>
+        </div>
+      </div>
+
+      <!-- High-Visibility Live Progress Bar -->
+      <div class="dialog-progress-container">
+        <div class="dialog-progress-track">
+          <div class="dialog-progress-fill" id="dlg-progress-fill"></div>
+        </div>
+        <div class="dialog-progress-meta">
+          <span class="dialog-progress-pct" id="dlg-progress-pct">0.0%</span>
+          <span class="dialog-progress-segs" id="dlg-progress-segs">32 connections</span>
+        </div>
+      </div>
+
+      <!-- Status & Metrics Grid -->
+      <div class="dialog-grid">
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_status_label">Status:</span>
+          <span class="dlg-val" id="dlg-status">Connecting…</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_file_size_label">File size:</span>
+          <span class="dlg-val" id="dlg-size">—</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_transfer_rate_label">Transfer rate:</span>
+          <span class="dlg-val highlight-speed" id="dlg-speed">0 B/s</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_time_left_label">Time left:</span>
+          <span class="dlg-val" id="dlg-eta">—</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_resume_capability_label">Resume capability:</span>
+          <span class="dlg-val" id="dlg-resume">Yes</span>
+        </div>
+        <div class="dlg-cell">
+          <span class="dlg-label" data-i18n="dialog_save_to_label2">Save to:</span>
+          <span class="dlg-val dlg-path" id="dlg-path">—</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons During Download -->
+      <footer class="dialog-actions">
+        <div class="dialog-actions-left">
+          <button class="btn btn-secondary" id="dlg-btn-manager" data-i18n="dialog_open_manager" data-i18n-title="dialog_open_manager_title" title="Open Full Fast Download Manager Window">
+            Open Manager
+          </button>
+        </div>
+        <div class="dialog-actions-right">
+          <button class="btn btn-secondary" id="dlg-btn-folder" data-i18n="dialog_open_folder" data-i18n-title="dialog_open_folder_title" title="Open containing folder">
+            Open Folder
+          </button>
+          <button class="btn btn-secondary" id="dlg-btn-pause">
+            Pause
+          </button>
+          <button class="btn btn-danger" id="dlg-btn-cancel" data-i18n="add_dialog_cancel">
+            Cancel
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- 3. CELEBRATION / COMPLETED VIEW -->
+    <div id="view-completed" class="dialog-view celebrate-view" style="display: none;" data-tauri-drag-region>
+      <div class="celebrate-badge" data-tauri-drag-region>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2ecc71" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+          <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+      </div>
+      <h2 class="celebrate-title" data-tauri-drag-region data-i18n="dialog_title_complete">Download Complete</h2>
+
+      <!-- IDM Style Draggable File Chip -->
+      <div class="celebrate-drag-chip" id="celebrate-drag-chip" data-i18n-title="dialog_drag_hint" title="Drag to desktop/folder or click to open" draggable="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span class="celebrate-filename" id="celebrate-filename">—</span>
+        <span class="celebrate-drag-tag" data-i18n="dialog_drag_tag">Drag & Drop</span>
+      </div>
+
+      <div class="celebrate-card" data-tauri-drag-region>
+        <div class="celebrate-row" data-tauri-drag-region>
+          <span class="celebrate-label" data-i18n="dialog_saved_to">Saved to:</span>
+          <span class="celebrate-value" id="celebrate-path">—</span>
+        </div>
+        <div class="celebrate-row" data-tauri-drag-region>
+          <span class="celebrate-label" data-i18n="dialog_total_size">Total Size:</span>
+          <span class="celebrate-value highlight-size" id="celebrate-size">—</span>
+        </div>
+      </div>
+
+      <footer class="dialog-actions celebrate-actions">
+        <button class="btn btn-primary btn-celebrate-open" id="celebrate-btn-open" data-i18n="dialog_open_file">
+          Open File
+        </button>
+        <button class="btn btn-secondary" id="celebrate-btn-folder" data-i18n="dialog_open_folder" data-i18n-title="dialog_open_folder_title2" title="Show in folder">
+          Open Folder
+        </button>
+        <button class="btn btn-secondary" id="celebrate-btn-manager" data-i18n="dialog_open_manager">
+          Open Manager
+        </button>
+        <button class="btn btn-secondary" id="celebrate-btn-close" data-i18n="dialog_close">
+          Close
+        </button>
+      </footer>
+    </div>
+
+  </main>
+
+  <script src="../../apps/desktop/download_dialog.js"></script>
+</body>
+</html>

@@ -18,6 +18,14 @@
 
 </div>
 
+<br>
+
+<img src="docs/assets/hero.svg" width="820" alt="The FDM download window: pressing Start Download, a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
+
+<sub>One file, 32 connections. The ticks in the bar are real segment boundaries.</sub>
+
+</div>
+
 ---
 
 > [!NOTE]
@@ -34,6 +42,27 @@
 * **💾 Direct Sparse File Positional Writes**: Writes segments directly into allocated sparse files on disk with zero post-download merge delay or disk thrashing.
 * **🔒 Crash-Proof Resumes**: Transactional control files (`.fdm`) record bytes strictly after durable disk flush. Resumes instantly from exact byte offsets.
 * **🌐 Browser Extension & Policy Auto-Deployment**: Native extension bridge supporting Google Chrome, Microsoft Edge, Brave, Vivaldi, and Chromium.
+* **🌍 12 Languages**: English, العربية, Deutsch, Español, Français, हिन्दी, Indonesia, Português, Русский, Türkçe, اردو, 中文 — right-to-left included. Follows your Windows language; changeable in Settings.
+* **📂 Drag Finished Files Anywhere**: Grab a completed download from the popup or the list and drop it straight into Explorer, the desktop, or another app.
+* **🗂️ A Folder per Category**: Send Video to one drive and Documents to another, or redirect a single download before it starts.
+
+---
+
+## 🖼️ What it looks like
+
+<div align="center">
+
+<img src="docs/assets/screenshot-main.png" width="860" alt="The FDM main window: a sidebar of categories beside a list of downloads, two transferring with segmented progress bars, two complete and one paused.">
+
+<sub>The main window — segmented bars show every connection working at once.</sub>
+
+<br><br>
+
+<img src="docs/assets/screenshot-popup.png" width="560" alt="The per-download window showing 62.8 percent of 5.7 GB at 48 MB/s over 32 connections, with 45 seconds left.">
+
+<sub>The per-download window, IDM style — speed, size, time left and where it is going.</sub>
+
+</div>
 
 ---
 
@@ -41,7 +70,7 @@
 
 ### Windows One-Click Installer (Recommended)
 
-1. Download **`FDM-Setup-0.1.5.exe`** from [Latest Releases](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases).
+1. Download the latest **`FDM-Setup-*.exe`** from [Latest Releases](https://github.com/ahmadfarooqofficial/Fast-Download-Manager/releases).
 2. Run the installer (Click **Yes** when Windows UAC prompts for admin).
 3. Open your browser (Chrome / Edge / Brave). The extension is automatically registered and ready.
 
@@ -133,7 +162,7 @@ FDM uses the **Direct In-Browser Stream Handover**:
 git clone https://github.com/ahmadfarooq/fdm.git
 cd fdm
 
-# 2. Run all unit and integration tests (86 tests)
+# 2. Run all unit and integration tests (159 tests)
 cargo test --workspace
 
 # 3. Build release binaries

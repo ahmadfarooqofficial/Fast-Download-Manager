@@ -1,0 +1,270 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 290" width="880" height="290" role="img"
+     aria-label="The FDM download window: pressing Start Download, then a 5.7 GB file transferring over 32 parallel connections at around 50 MB per second, then finishing.">
+  <title>FDM — one file, many connections</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e50914"/><stop offset="55%" stop-color="#ff4b2b"/><stop offset="100%" stop-color="#2ecc71"/>
+    </linearGradient>
+    <clipPath id="c"><rect x="60" y="150" width="760" height="20" rx="4"/></clipPath>
+    <style>
+      @keyframes sceneA{0.000%,23.990%{opacity:1} 24.000%,100%{opacity:0}}
+      @keyframes sceneB{0%,23.990%{opacity:0} 24.000%,83.990%{opacity:1} 84.000%,100%{opacity:0}}
+      @keyframes sceneC{0%,83.990%{opacity:0} 84.000%,99.990%{opacity:1}}
+      @keyframes fill{0%,24%{width:0}84%,100%{width:760px}}
+      @keyframes cursor{0%{transform:translate(560px,238px)}14%{transform:translate(560px,238px)}17.3%{transform:translate(676px,250px)}100%{transform:translate(676px,250px)}}
+      @keyframes press{0%,17.3%{opacity:0}18.7%{opacity:.55}22.8%,100%{opacity:0}}
+      @keyframes n0{0%,23.990%{opacity:0} 24.000%,26.990%{opacity:1} 27.000%,100%{opacity:0}}
+      @keyframes n1{0%,26.990%{opacity:0} 27.000%,29.990%{opacity:1} 30.000%,100%{opacity:0}}
+      @keyframes n2{0%,29.990%{opacity:0} 30.000%,32.990%{opacity:1} 33.000%,100%{opacity:0}}
+      @keyframes n3{0%,32.990%{opacity:0} 33.000%,35.990%{opacity:1} 36.000%,100%{opacity:0}}
+      @keyframes n4{0%,35.990%{opacity:0} 36.000%,38.990%{opacity:1} 39.000%,100%{opacity:0}}
+      @keyframes n5{0%,38.990%{opacity:0} 39.000%,41.990%{opacity:1} 42.000%,100%{opacity:0}}
+      @keyframes n6{0%,41.990%{opacity:0} 42.000%,44.990%{opacity:1} 45.000%,100%{opacity:0}}
+      @keyframes n7{0%,44.990%{opacity:0} 45.000%,47.990%{opacity:1} 48.000%,100%{opacity:0}}
+      @keyframes n8{0%,47.990%{opacity:0} 48.000%,50.990%{opacity:1} 51.000%,100%{opacity:0}}
+      @keyframes n9{0%,50.990%{opacity:0} 51.000%,53.990%{opacity:1} 54.000%,100%{opacity:0}}
+      @keyframes n10{0%,53.990%{opacity:0} 54.000%,56.990%{opacity:1} 57.000%,100%{opacity:0}}
+      @keyframes n11{0%,56.990%{opacity:0} 57.000%,59.990%{opacity:1} 60.000%,100%{opacity:0}}
+      @keyframes n12{0%,59.990%{opacity:0} 60.000%,62.990%{opacity:1} 63.000%,100%{opacity:0}}
+      @keyframes n13{0%,62.990%{opacity:0} 63.000%,65.990%{opacity:1} 66.000%,100%{opacity:0}}
+      @keyframes n14{0%,65.990%{opacity:0} 66.000%,68.990%{opacity:1} 69.000%,100%{opacity:0}}
+      @keyframes n15{0%,68.990%{opacity:0} 69.000%,71.990%{opacity:1} 72.000%,100%{opacity:0}}
+      @keyframes n16{0%,71.990%{opacity:0} 72.000%,74.990%{opacity:1} 75.000%,100%{opacity:0}}
+      @keyframes n17{0%,74.990%{opacity:0} 75.000%,77.990%{opacity:1} 78.000%,100%{opacity:0}}
+      @keyframes n18{0%,77.990%{opacity:0} 78.000%,80.990%{opacity:1} 81.000%,100%{opacity:0}}
+      @keyframes n19{0%,80.990%{opacity:0} 81.000%,83.990%{opacity:1} 84.000%,100%{opacity:0}}
+      .sA{animation:sceneA 9s steps(1,end) infinite}
+      .sB{animation:sceneB 9s steps(1,end) infinite}
+      .sC{animation:sceneC 9s steps(1,end) infinite}
+      .bar{animation:fill 9s cubic-bezier(.2,.7,.3,1) infinite}
+      .cur{animation:cursor 9s cubic-bezier(.4,0,.2,1) infinite,sceneA 9s steps(1,end) infinite}
+      .press{animation:press 9s linear infinite}
+      .n0{animation:n0 9s steps(1,end) infinite}
+      .n1{animation:n1 9s steps(1,end) infinite}
+      .n2{animation:n2 9s steps(1,end) infinite}
+      .n3{animation:n3 9s steps(1,end) infinite}
+      .n4{animation:n4 9s steps(1,end) infinite}
+      .n5{animation:n5 9s steps(1,end) infinite}
+      .n6{animation:n6 9s steps(1,end) infinite}
+      .n7{animation:n7 9s steps(1,end) infinite}
+      .n8{animation:n8 9s steps(1,end) infinite}
+      .n9{animation:n9 9s steps(1,end) infinite}
+      .n10{animation:n10 9s steps(1,end) infinite}
+      .n11{animation:n11 9s steps(1,end) infinite}
+      .n12{animation:n12 9s steps(1,end) infinite}
+      .n13{animation:n13 9s steps(1,end) infinite}
+      .n14{animation:n14 9s steps(1,end) infinite}
+      .n15{animation:n15 9s steps(1,end) infinite}
+      .n16{animation:n16 9s steps(1,end) infinite}
+      .n17{animation:n17 9s steps(1,end) infinite}
+      .n18{animation:n18 9s steps(1,end) infinite}
+      .n19{animation:n19 9s steps(1,end) infinite}
+      .wm{font:800 24px 'Segoe UI',system-ui,sans-serif}
+      .sub{font:600 13px 'Segoe UI',system-ui,sans-serif}
+      .name{font:600 16px 'Segoe UI',system-ui,sans-serif}
+      .url{font:400 12px 'Segoe UI',system-ui,sans-serif}
+      .lab{font:400 13px 'Segoe UI',system-ui,sans-serif;fill:#64748b}
+      .val{font:600 13px 'Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums;fill:#f8fafc}
+      .pct{font:700 15px 'Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums;fill:#f8fafc}
+      .btn{font:600 13px 'Segoe UI',system-ui,sans-serif}
+      .big{font:700 20px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc}
+      /* Reduced motion gets the finished state, not a frozen empty one. */
+      @media (prefers-reduced-motion:reduce){
+        .sA,.cur,.press{animation:none;opacity:0}
+        .sB{animation:none;opacity:0}
+        .sC{animation:none;opacity:1}
+        .bar{animation:none;width:760px}
+        .n0{animation:none;opacity:0}.n1{animation:none;opacity:0}.n2{animation:none;opacity:0}.n3{animation:none;opacity:0}.n4{animation:none;opacity:0}.n5{animation:none;opacity:0}.n6{animation:none;opacity:0}.n7{animation:none;opacity:0}.n8{animation:none;opacity:0}.n9{animation:none;opacity:0}.n10{animation:none;opacity:0}.n11{animation:none;opacity:0}.n12{animation:none;opacity:0}.n13{animation:none;opacity:0}.n14{animation:none;opacity:0}.n15{animation:none;opacity:0}.n16{animation:none;opacity:0}.n17{animation:none;opacity:0}.n18{animation:none;opacity:0}.n19{animation:none;opacity:0}
+      }
+    </style>
+  </defs>
+
+  <rect width="880" height="290" rx="12" fill="#020617"/>
+  <rect x=".5" y=".5" width="879" height="289" rx="12" fill="none" stroke="#1a1e2f"/>
+  <path d="M0 12a12 12 0 0 1 12-12h856a12 12 0 0 1 12 12v40H0z" fill="#1a1e2f"/>
+  <g transform="translate(26 13)">
+    <path d="M12 1L2 7V17L12 23L22 17V7L12 1Z" fill="none" stroke="#e50914" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M12 6V16M12 16L7.5 12M12 16L16.5 12" fill="none" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text class="wm" x="60" y="34" fill="#e50914">FDM</text>
+  <text class="sub sA" x="120" y="34" fill="#94a3b8">Download File Info</text>
+  <text class="sub sB" x="120" y="34" fill="#94a3b8">Download Status</text>
+  <text class="sub sC" x="120" y="34" fill="#94a3b8">Download Complete</text>
+
+  <!-- Scene A — the prompt, and a cursor arriving at Start Download -->
+  <g class="sA">
+    <rect x="30" y="72" width="820" height="126" rx="8" fill="#0e1223" stroke="#334155"/>
+    <text class="lab" x="56" y="102">URL:</text>
+    <rect x="150" y="86" width="670" height="24" rx="4" fill="#020617" stroke="#334155"/>
+    <text class="val" x="162" y="103" style="font-weight:400;fill:#94a3b8">https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso</text>
+    <text class="lab" x="56" y="140">File Name:</text>
+    <rect x="150" y="124" width="670" height="24" rx="4" fill="#020617" stroke="#334155"/>
+    <text class="val" x="162" y="141" style="font-weight:400">ubuntu-24.04.1-desktop-amd64.iso</text>
+    <text class="lab" x="56" y="178">Save To:</text>
+    <rect x="150" y="162" width="640" height="24" rx="4" fill="#020617" stroke="#334155"/>
+    <text class="val" x="162" y="179" style="font-weight:400;fill:#94a3b8">C:\Users\You\Downloads\FDM\Programs</text>
+    <rect x="796" y="162" width="24" height="24" rx="4" fill="#1a1e2f" stroke="#334155"/>
+    <text x="803" y="179" style="font-size:13px">📂</text>
+
+    <rect x="30" y="236" width="130" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
+    <text class="btn" x="52" y="256" fill="#94a3b8">Download Later</text>
+    <rect x="646" y="236" width="150" height="32" rx="6" fill="#e50914"/>
+    <rect class="press" x="646" y="236" width="150" height="32" rx="6" fill="#ffffff"/>
+    <text class="btn" x="678" y="256" fill="#ffffff">▶  Start Download</text>
+    <rect x="806" y="236" width="44" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
+    <text class="btn" x="815" y="256" fill="#94a3b8">Esc</text>
+  </g>
+  <g class="cur">
+    <path d="M0 0 L0 14 L3.6 10.6 L6 16 L8.4 15 L6 9.6 L11 9.6 Z" fill="#f8fafc" stroke="#020617" stroke-width="1.2"/>
+  </g>
+
+  <!-- Scene B — the transfer -->
+  <g class="sB">
+    <rect x="30" y="76" width="820" height="54" rx="8" fill="#0e1223" stroke="#334155"/>
+    <text class="name" x="60" y="100" fill="#f8fafc">ubuntu-24.04.1-desktop-amd64.iso</text>
+    <text class="url"  x="60" y="118" fill="#64748b">https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso</text>
+    <rect x="60" y="150" width="760" height="20" rx="4" fill="#1a1e2f"/>
+    <text class="lab" x="60"  y="240">Speed</text>
+    <text class="lab" x="360" y="240">Time left</text>
+    <text class="lab" x="620" y="240">Connections</text>
+    <text class="val" x="820" y="240" text-anchor="end">32 parallel</text>
+  </g>
+  <g class="sB" clip-path="url(#c)">
+    <rect class="bar" x="60" y="150" height="20" fill="url(#g)"/>
+    <g fill="#020617"><rect x="107.5" y="150" width="2" height="20"/><rect x="155.0" y="150" width="2" height="20"/><rect x="202.5" y="150" width="2" height="20"/><rect x="250.0" y="150" width="2" height="20"/><rect x="297.5" y="150" width="2" height="20"/><rect x="345.0" y="150" width="2" height="20"/><rect x="392.5" y="150" width="2" height="20"/><rect x="440.0" y="150" width="2" height="20"/><rect x="487.5" y="150" width="2" height="20"/><rect x="535.0" y="150" width="2" height="20"/><rect x="582.5" y="150" width="2" height="20"/><rect x="630.0" y="150" width="2" height="20"/><rect x="677.5" y="150" width="2" height="20"/><rect x="725.0" y="150" width="2" height="20"/><rect x="772.5" y="150" width="2" height="20"/></g>
+  </g>
+  <g class="sB">
+    <g class="n0">
+      <text class="pct"  x="60"  y="196">8.4%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">0.48 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">38.7 MB/s</text>
+      <text class="val"  x="420" y="240">1m 8s</text>
+    </g>
+    <g class="n1">
+      <text class="pct"  x="60"  y="196">16.4%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">0.93 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">47.2 MB/s</text>
+      <text class="val"  x="420" y="240">1m 2s</text>
+    </g>
+    <g class="n2">
+      <text class="pct"  x="60"  y="196">24.1%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">1.37 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">32.3 MB/s</text>
+      <text class="val"  x="420" y="240">56s</text>
+    </g>
+    <g class="n3">
+      <text class="pct"  x="60"  y="196">31.6%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">1.80 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">41.0 MB/s</text>
+      <text class="val"  x="420" y="240">51s</text>
+    </g>
+    <g class="n4">
+      <text class="pct"  x="60"  y="196">38.7%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">2.20 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">49.2 MB/s</text>
+      <text class="val"  x="420" y="240">45s</text>
+    </g>
+    <g class="n5">
+      <text class="pct"  x="60"  y="196">45.5%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">2.59 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">34.3 MB/s</text>
+      <text class="val"  x="420" y="240">40s</text>
+    </g>
+    <g class="n6">
+      <text class="pct"  x="60"  y="196">51.9%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">2.96 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">43.2 MB/s</text>
+      <text class="val"  x="420" y="240">36s</text>
+    </g>
+    <g class="n7">
+      <text class="pct"  x="60"  y="196">58.0%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">3.31 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">51.2 MB/s</text>
+      <text class="val"  x="420" y="240">31s</text>
+    </g>
+    <g class="n8">
+      <text class="pct"  x="60"  y="196">63.8%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">3.63 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">36.3 MB/s</text>
+      <text class="val"  x="420" y="240">27s</text>
+    </g>
+    <g class="n9">
+      <text class="pct"  x="60"  y="196">69.2%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">3.94 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">45.5 MB/s</text>
+      <text class="val"  x="420" y="240">23s</text>
+    </g>
+    <g class="n10">
+      <text class="pct"  x="60"  y="196">74.3%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">4.23 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">53.2 MB/s</text>
+      <text class="val"  x="420" y="240">19s</text>
+    </g>
+    <g class="n11">
+      <text class="pct"  x="60"  y="196">78.9%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">4.50 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">38.3 MB/s</text>
+      <text class="val"  x="420" y="240">16s</text>
+    </g>
+    <g class="n12">
+      <text class="pct"  x="60"  y="196">83.2%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">4.74 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">47.7 MB/s</text>
+      <text class="val"  x="420" y="240">12s</text>
+    </g>
+    <g class="n13">
+      <text class="pct"  x="60"  y="196">87.1%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">4.96 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">55.2 MB/s</text>
+      <text class="val"  x="420" y="240">10s</text>
+    </g>
+    <g class="n14">
+      <text class="pct"  x="60"  y="196">90.5%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.16 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">40.4 MB/s</text>
+      <text class="val"  x="420" y="240">7s</text>
+    </g>
+    <g class="n15">
+      <text class="pct"  x="60"  y="196">93.5%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.33 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">50.0 MB/s</text>
+      <text class="val"  x="420" y="240">5s</text>
+    </g>
+    <g class="n16">
+      <text class="pct"  x="60"  y="196">96.0%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.47 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">57.3 MB/s</text>
+      <text class="val"  x="420" y="240">3s</text>
+    </g>
+    <g class="n17">
+      <text class="pct"  x="60"  y="196">98.0%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.58 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">42.4 MB/s</text>
+      <text class="val"  x="420" y="240">1s</text>
+    </g>
+    <g class="n18">
+      <text class="pct"  x="60"  y="196">99.4%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.66 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">52.2 MB/s</text>
+      <text class="val"  x="420" y="240">0s</text>
+    </g>
+    <g class="n19">
+      <text class="pct"  x="60"  y="196">100.0%</text>
+      <text class="val"  x="820" y="196" text-anchor="end">5.70 GB of 5.70 GB</text>
+      <text class="val"  x="146" y="240">59.3 MB/s</text>
+      <text class="val"  x="420" y="240">0s</text>
+    </g>
+  </g>
+
+  <!-- Scene C — done -->
+  <g class="sC">
+    <circle cx="440" cy="112" r="26" fill="none" stroke="#2ecc71" stroke-width="3"/>
+    <path d="M428 112l9 9 17-18" fill="none" stroke="#2ecc71" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="big" x="440" y="172" text-anchor="middle">Download Complete</text>
+    <text class="val" x="440" y="198" text-anchor="middle" style="font-weight:400;fill:#94a3b8">ubuntu-24.04.1-desktop-amd64.iso  ·  5.70 GB  ·  1m 14s</text>
+    <rect x="318" y="222" width="110" height="32" rx="6" fill="#2ecc71"/>
+    <text class="btn" x="344" y="242" fill="#052e16">Open File</text>
+    <rect x="440" y="222" width="122" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
+    <text class="btn" x="462" y="242" fill="#94a3b8">Open Folder</text>
+  </g>
+</svg>
