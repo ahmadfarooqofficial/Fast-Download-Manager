@@ -16,11 +16,9 @@
 
 [Quick Install](#-quick-install) • [Key Features](#-key-features) • [Architecture](#-architecture) • [How IDM Method Works](#-the-idm-direct-stream-method) • [Build from Source](#-build-from-source) • [CLI Commands](#-cli-usage) • [License](#-license)
 
-</div>
-
 <br>
 
-<img src="docs/assets/hero.svg" width="560" alt="The FDM download window: a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
+<img src="docs/assets/hero.svg" width="760" alt="The FDM download window: a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
 
 <sub>One file, 32 connections at once.</sub>
 
