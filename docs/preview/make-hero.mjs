@@ -1,28 +1,36 @@
-// Generates docs/assets/hero.svg — the download popup, start to finish.
+// Generates docs/assets/hero.svg — the real download popup, start to finish.
 //
-// Three scenes in one loop: the Start Download prompt with a cursor moving in
-// and clicking, the transfer running with the numbers racing, then the finished
-// state. Generated rather than hand-written because the per-frame keyframes are
+// Two scenes in one loop: the transfer running with the numbers racing, then
+// the finished state. It opens mid-download on purpose — the prompt beforehand
+// is a form, and a form is not what anyone came to the README to see.
+// Generated rather than hand-written because the per-frame keyframes are
 // mechanical and easy to get subtly wrong by hand.
 //
-// SVG rather than a GIF: it stays sharp at any width, weighs a few KB instead of
-// megabytes, and is a text file the repo can diff.
+// The geometry deliberately matches apps/desktop/download_dialog.html at its
+// real 560x330 window size — an earlier version was 880x290, which squashed the
+// whole dialog into a letterbox and dropped the status grid and buttons
+// entirely. If the dialog's layout changes, this should be re-measured against
+// docs/assets/screenshot-popup.png.
+//
+// SVG rather than a GIF: sharp at any width, ~20 KB instead of megabytes, and a
+// text file the repo can diff.
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'hero.svg');
 
-const DUR = 9;            // seconds per loop
-const A_END = 24;         // prompt scene ends (%)
-const B_END = 84;         // transfer scene ends (%)
-const FRAMES = 20;        // number updates during the transfer
-const TOTAL = 6115318784; // 5.7 GB
+const W = 560, H = 330;
+const DUR = 7;      // seconds per loop — short enough to read as fast
+const A_END = 0;    // no prompt scene; the transfer starts immediately
+const B_END = 82;   // transfer scene ends (%)
+const FRAMES = 26;  // number updates during the transfer
+const TOTAL = 6115318784;
 
 const gb = b => (b / 1024 ** 3).toFixed(2);
 
-/** A keyframe that shows an element only between `from`% and `to`%. */
-function window_(name, from, to) {
+/** Keyframes that show an element only between `from`% and `to`% of the loop. */
+function show(name, from, to) {
   const p = [];
   if (from > 0) p.push(`0%,${(from - 0.01).toFixed(3)}%{opacity:0}`);
   p.push(`${from.toFixed(3)}%,${(to - 0.01).toFixed(3)}%{opacity:1}`);
@@ -30,8 +38,7 @@ function window_(name, from, to) {
   return `@keyframes ${name}{${p.join(' ')}}`;
 }
 
-// Numbers race with an ease-out curve, so it looks like a real transfer finding
-// its speed rather than a linear sweep.
+// Eased so it reads like a transfer finding its speed, not a linear sweep.
 const span = B_END - A_END;
 const frames = Array.from({ length: FRAMES }, (_, i) => {
   const t = (i + 1) / FRAMES;
@@ -42,152 +49,141 @@ const frames = Array.from({ length: FRAMES }, (_, i) => {
     to: A_END + span * ((i + 1) / FRAMES),
     pct: pct.toFixed(1),
     done: gb(TOTAL * (pct / 100)),
-    speed: (38 + Math.sin(i * 2.1) * 9 + t * 14).toFixed(1),
+    speed: (38 + Math.sin(i * 2.1) * 9 + t * 14).toFixed(2),
     eta: left > 59 ? `${Math.floor(left / 60)}m ${left % 60}s` : `${left}s`,
   };
 });
 
+const BAR = { x: 16, y: 118, w: 528, h: 14 };
+
 const kf = [
-  window_('sceneA', 0, A_END),
-  window_('sceneB', A_END, B_END),
-  window_('sceneC', B_END, 100),
-  // The bar only moves while the transfer scene is on screen.
-  `@keyframes fill{0%,${A_END}%{width:0}${B_END}%,100%{width:760px}}`,
-  // Cursor glides to the button, then the button flashes on contact.
-  `@keyframes cursor{0%{transform:translate(560px,238px)}` +
-    `14%{transform:translate(560px,238px)}` +
-    `${(A_END * 0.72).toFixed(1)}%{transform:translate(676px,250px)}` +
-    `100%{transform:translate(676px,250px)}}`,
-  `@keyframes press{0%,${(A_END * 0.72).toFixed(1)}%{opacity:0}` +
-    `${(A_END * 0.78).toFixed(1)}%{opacity:.55}` +
-    `${(A_END * 0.95).toFixed(1)}%,100%{opacity:0}}`,
-  ...frames.map((f, i) => window_(`n${i}`, f.at, f.to)),
+  show('sceneB', A_END, B_END),
+  show('sceneC', B_END, 100),
+  `@keyframes fill{0%,${A_END}%{width:0}${B_END}%,100%{width:${BAR.w}px}}`,
+  ...frames.map((f, i) => show(`n${i}`, f.at, f.to)),
 ].join('\n      ');
 
 const cls = [
-  `.sA{animation:sceneA ${DUR}s steps(1,end) infinite}`,
   `.sB{animation:sceneB ${DUR}s steps(1,end) infinite}`,
   `.sC{animation:sceneC ${DUR}s steps(1,end) infinite}`,
   `.bar{animation:fill ${DUR}s cubic-bezier(.2,.7,.3,1) infinite}`,
-  `.cur{animation:cursor ${DUR}s cubic-bezier(.4,0,.2,1) infinite,sceneA ${DUR}s steps(1,end) infinite}`,
-  `.press{animation:press ${DUR}s linear infinite}`,
   ...frames.map((_, i) => `.n${i}{animation:n${i} ${DUR}s steps(1,end) infinite}`),
 ].join('\n      ');
 
-// Segment boundaries painted over the fill in the background colour — the same
-// trick the real progress bar uses to make parallel connections visible.
-const ticks = Array.from({ length: 15 }, (_, i) =>
-  `<rect x="${(60 + (i + 1) * 47.5).toFixed(1)}" y="150" width="2" height="20"/>`).join('');
-
 const numbers = frames.map((f, i) => `
     <g class="n${i}">
-      <text class="pct"  x="60"  y="196">${f.pct}%</text>
-      <text class="val"  x="820" y="196" text-anchor="end">${f.done} GB of 5.70 GB</text>
-      <text class="val"  x="146" y="240">${f.speed} MB/s</text>
-      <text class="val"  x="420" y="240">${f.eta}</text>
+      <text class="pct" x="16"  y="150">${f.pct}%</text>
+      <text class="v"   x="528" y="188" text-anchor="end">${f.done} GB / 5.70 GB</text>
+      <text class="v"   x="246" y="211" text-anchor="end">${f.speed} MB/s</text>
+      <text class="v"   x="528" y="211" text-anchor="end">${f.eta}</text>
     </g>`).join('');
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 290" width="880" height="290" role="img"
-     aria-label="The FDM download window: pressing Start Download, then a 5.7 GB file transferring over 32 parallel connections at around 50 MB per second, then finishing.">
+/** A pill button. */
+const btn = (x, y, w, label, { fill = '#1a1e2f', stroke = '#334155', text = '#94a3b8', bold = false } = {}) => `
+    <rect x="${x}" y="${y}" width="${w}" height="28" rx="6" fill="${fill}"${stroke ? ` stroke="${stroke}"` : ''}/>
+    <text class="btn${bold ? ' b' : ''}" x="${x + w / 2}" y="${y + 18}" text-anchor="middle" fill="${text}">${label}</text>`;
+
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+     aria-label="The FDM download window: a 5.7 GB file transferring over 32 parallel connections at around 50 MB per second, then finishing.">
   <title>FDM — one file, many connections</title>
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0%" stop-color="#e50914"/><stop offset="55%" stop-color="#ff4b2b"/><stop offset="100%" stop-color="#2ecc71"/>
     </linearGradient>
-    <clipPath id="c"><rect x="60" y="150" width="760" height="20" rx="4"/></clipPath>
+    <clipPath id="c"><rect x="${BAR.x}" y="${BAR.y}" width="${BAR.w}" height="${BAR.h}" rx="4"/></clipPath>
     <style>
       ${kf}
       ${cls}
-      .wm{font:800 24px 'Segoe UI',system-ui,sans-serif}
-      .sub{font:600 13px 'Segoe UI',system-ui,sans-serif}
-      .name{font:600 16px 'Segoe UI',system-ui,sans-serif}
-      .url{font:400 12px 'Segoe UI',system-ui,sans-serif}
-      .lab{font:400 13px 'Segoe UI',system-ui,sans-serif;fill:#64748b}
-      .val{font:600 13px 'Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums;fill:#f8fafc}
-      .pct{font:700 15px 'Segoe UI',system-ui,sans-serif;font-variant-numeric:tabular-nums;fill:#f8fafc}
-      .btn{font:600 13px 'Segoe UI',system-ui,sans-serif}
-      .big{font:700 20px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc}
-      /* Reduced motion gets the finished state, not a frozen empty one. */
+      .wm{font:800 17px 'Segoe UI',system-ui,sans-serif}
+      .sub{font:600 11px 'Segoe UI',system-ui,sans-serif;fill:#94a3b8}
+      .name{font:600 13px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc}
+      .url{font:400 10px 'Segoe UI',system-ui,sans-serif;fill:#64748b}
+      .l{font:400 11px 'Segoe UI',system-ui,sans-serif;fill:#94a3b8}
+      .v{font:600 11px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc;font-variant-numeric:tabular-nums}
+      .pct{font:700 13px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc;font-variant-numeric:tabular-nums}
+      .btn{font:500 11px 'Segoe UI',system-ui,sans-serif}
+      .btn.b{font-weight:600}
+      .big{font:700 17px 'Segoe UI',system-ui,sans-serif;fill:#f8fafc}
+      /* Reduced motion gets the finished state, not a frozen empty bar. */
       @media (prefers-reduced-motion:reduce){
-        .sA,.cur,.press{animation:none;opacity:0}
         .sB{animation:none;opacity:0}
         .sC{animation:none;opacity:1}
-        .bar{animation:none;width:760px}
+        .bar{animation:none;width:${BAR.w}px}
         ${frames.map((_, i) => `.n${i}{animation:none;opacity:0}`).join('')}
       }
     </style>
   </defs>
 
-  <rect width="880" height="290" rx="12" fill="#020617"/>
-  <rect x=".5" y=".5" width="879" height="289" rx="12" fill="none" stroke="#1a1e2f"/>
-  <path d="M0 12a12 12 0 0 1 12-12h856a12 12 0 0 1 12 12v40H0z" fill="#1a1e2f"/>
-  <g transform="translate(26 13)">
-    <path d="M12 1L2 7V17L12 23L22 17V7L12 1Z" fill="none" stroke="#e50914" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M12 6V16M12 16L7.5 12M12 16L16.5 12" fill="none" stroke="#e50914" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
-  <text class="wm" x="60" y="34" fill="#e50914">FDM</text>
-  <text class="sub sA" x="120" y="34" fill="#94a3b8">Download File Info</text>
-  <text class="sub sB" x="120" y="34" fill="#94a3b8">Download Status</text>
-  <text class="sub sC" x="120" y="34" fill="#94a3b8">Download Complete</text>
+  <rect width="${W}" height="${H}" rx="10" fill="#020617"/>
+  <rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="10" fill="none" stroke="#334155"/>
 
-  <!-- Scene A — the prompt, and a cursor arriving at Start Download -->
-  <g class="sA">
-    <rect x="30" y="72" width="820" height="126" rx="8" fill="#0e1223" stroke="#334155"/>
-    <text class="lab" x="56" y="102">URL:</text>
-    <rect x="150" y="86" width="670" height="24" rx="4" fill="#020617" stroke="#334155"/>
-    <text class="val" x="162" y="103" style="font-weight:400;fill:#94a3b8">https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso</text>
-    <text class="lab" x="56" y="140">File Name:</text>
-    <rect x="150" y="124" width="670" height="24" rx="4" fill="#020617" stroke="#334155"/>
-    <text class="val" x="162" y="141" style="font-weight:400">ubuntu-24.04.1-desktop-amd64.iso</text>
-    <text class="lab" x="56" y="178">Save To:</text>
-    <rect x="150" y="162" width="640" height="24" rx="4" fill="#020617" stroke="#334155"/>
-    <text class="val" x="162" y="179" style="font-weight:400;fill:#94a3b8">C:\\Users\\You\\Downloads\\FDM\\Programs</text>
-    <rect x="796" y="162" width="24" height="24" rx="4" fill="#1a1e2f" stroke="#334155"/>
-    <text x="803" y="179" style="font-size:13px">📂</text>
-
-    <rect x="30" y="236" width="130" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
-    <text class="btn" x="52" y="256" fill="#94a3b8">Download Later</text>
-    <rect x="646" y="236" width="150" height="32" rx="6" fill="#e50914"/>
-    <rect class="press" x="646" y="236" width="150" height="32" rx="6" fill="#ffffff"/>
-    <text class="btn" x="678" y="256" fill="#ffffff">▶  Start Download</text>
-    <rect x="806" y="236" width="44" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
-    <text class="btn" x="815" y="256" fill="#94a3b8">Esc</text>
+  <!-- Title bar -->
+  <path d="M0 10a10 10 0 0 1 10-10h540a10 10 0 0 1 10 10v26H0z" fill="#1a1e2f"/>
+  <g transform="translate(14 10)">
+    <path d="M8 .8L1.4 4.6V12.2L8 16L14.6 12.2V4.6L8 .8Z" fill="none" stroke="#e50914" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M8 4.2V11M8 11L5 8.3M8 11L11 8.3" fill="none" stroke="#e50914" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <g class="cur">
-    <path d="M0 0 L0 14 L3.6 10.6 L6 16 L8.4 15 L6 9.6 L11 9.6 Z" fill="#f8fafc" stroke="#020617" stroke-width="1.2"/>
-  </g>
+  <text class="wm" x="36" y="24" fill="#e50914">FDM</text>
+  <text class="sub sB" x="78" y="24">Download Status</text>
+  <text class="sub sC" x="78" y="24">Download Complete</text>
+  <path d="M496 18h12" stroke="#94a3b8" stroke-width="1.3"/>
+  <path d="M526 13l10 10M536 13l-10 10" stroke="#94a3b8" stroke-width="1.3"/>
 
-  <!-- Scene B — the transfer -->
+  <!-- ===== Scene B — the transfer ===== -->
   <g class="sB">
-    <rect x="30" y="76" width="820" height="54" rx="8" fill="#0e1223" stroke="#334155"/>
-    <text class="name" x="60" y="100" fill="#f8fafc">ubuntu-24.04.1-desktop-amd64.iso</text>
-    <text class="url"  x="60" y="118" fill="#64748b">https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso</text>
-    <rect x="60" y="150" width="760" height="20" rx="4" fill="#1a1e2f"/>
-    <text class="lab" x="60"  y="240">Speed</text>
-    <text class="lab" x="360" y="240">Time left</text>
-    <text class="lab" x="620" y="240">Connections</text>
-    <text class="val" x="820" y="240" text-anchor="end">32 parallel</text>
+    <rect x="16" y="48" width="528" height="46" rx="8" fill="#0e1223" stroke="#334155"/>
+    <rect x="30" y="60" width="22" height="22" rx="3" fill="none" stroke="#f59e0b" stroke-width="1.6"/>
+    <path d="M30 66h22" stroke="#f59e0b" stroke-width="1.6"/>
+    <text class="name" x="62" y="70">ubuntu-24.04.1-desktop-amd64.iso</text>
+    <text class="url"  x="62" y="84">https://releases.ubuntu.com/24.04/ubuntu-24.04.1-desktop-amd64.iso</text>
+
+    <rect x="${BAR.x}" y="${BAR.y}" width="${BAR.w}" height="${BAR.h}" rx="4" fill="#1a1e2f"/>
+    <text class="l" x="544" y="150" text-anchor="end">32 parallel streams</text>
+
+    <rect x="16" y="166" width="528" height="84" rx="8" fill="#0e1223" stroke="#334155"/>
+    <text class="l" x="32"  y="188">Status:</text>
+    <text class="v" x="246" y="188" text-anchor="end" style="fill:#38bdf8">Downloading (32 connections)</text>
+    <text class="l" x="286" y="188">File size:</text>
+    <text class="l" x="32"  y="211">Transfer rate:</text>
+    <text class="l" x="286" y="211">Time left:</text>
+    <text class="l" x="32"  y="234">Resume capability:</text>
+    <text class="v" x="246" y="234" text-anchor="end">Yes</text>
+    <text class="l" x="286" y="234">Save to:</text>
+    <text class="v" x="528" y="234" text-anchor="end" style="font-weight:400">...\\FDM\\Programs\\ubuntu-24.04.1.iso</text>
+${btn(16, 276, 104, 'Open Manager')}
+${btn(316, 276, 90, 'Open Folder')}
+${btn(414, 276, 60, 'Pause')}
+${btn(482, 276, 62, 'Cancel', { fill: '#475569', stroke: '', text: '#f8fafc' })}
   </g>
   <g class="sB" clip-path="url(#c)">
-    <rect class="bar" x="60" y="150" height="20" fill="url(#g)"/>
-    <g fill="#020617">${ticks}</g>
+    <rect class="bar" x="${BAR.x}" y="${BAR.y}" height="${BAR.h}" fill="url(#g)"/>
   </g>
   <g class="sB">${numbers}
   </g>
 
-  <!-- Scene C — done -->
+  <!-- ===== Scene C — done ===== -->
   <g class="sC">
-    <circle cx="440" cy="112" r="26" fill="none" stroke="#2ecc71" stroke-width="3"/>
-    <path d="M428 112l9 9 17-18" fill="none" stroke="#2ecc71" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-    <text class="big" x="440" y="172" text-anchor="middle">Download Complete</text>
-    <text class="val" x="440" y="198" text-anchor="middle" style="font-weight:400;fill:#94a3b8">ubuntu-24.04.1-desktop-amd64.iso  ·  5.70 GB  ·  1m 14s</text>
-    <rect x="318" y="222" width="110" height="32" rx="6" fill="#2ecc71"/>
-    <text class="btn" x="344" y="242" fill="#052e16">Open File</text>
-    <rect x="440" y="222" width="122" height="32" rx="6" fill="#1a1e2f" stroke="#334155"/>
-    <text class="btn" x="462" y="242" fill="#94a3b8">Open Folder</text>
+    <circle cx="280" cy="92" r="22" fill="none" stroke="#2ecc71" stroke-width="2.5"/>
+    <path d="M270 92l7.5 7.5 14-15" fill="none" stroke="#2ecc71" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="big" x="280" y="142" text-anchor="middle">Download Complete</text>
+
+    <rect x="132" y="158" width="296" height="30" rx="6" fill="#0e1223" stroke="#e50914"/>
+    <text class="v" x="152" y="177">ubuntu-24.04.1-desktop-amd64.iso</text>
+    <rect x="364" y="165" width="52" height="16" rx="8" fill="#1d0b12"/>
+    <text class="btn b" x="390" y="176" text-anchor="middle" fill="#ff4b4b">DRAG</text>
+
+    <rect x="16" y="200" width="528" height="52" rx="8" fill="#0e1223" stroke="#334155"/>
+    <text class="l" x="32"  y="220">Saved to:</text>
+    <text class="v" x="528" y="220" text-anchor="end" style="font-weight:400">C:\\Users\\You\\Downloads\\FDM\\Programs</text>
+    <text class="l" x="32"  y="240">Total size:</text>
+    <text class="v" x="528" y="240" text-anchor="end">5.70 GB  ·  1m 14s</text>
+${btn(112, 276, 92, 'Open File', { fill: '#2ecc71', stroke: '', text: '#052e16', bold: true })}
+${btn(212, 276, 92, 'Open Folder')}
+${btn(312, 276, 100, 'Open Manager')}
+${btn(420, 276, 64, 'Close')}
   </g>
 </svg>
 `;
 
 writeFileSync(out, svg);
-console.log(`wrote docs/assets/hero.svg (${(svg.length / 1024).toFixed(1)} KB)`);
+console.log(`wrote docs/assets/hero.svg (${(svg.length / 1024).toFixed(1)} KB, ${W}x${H})`);

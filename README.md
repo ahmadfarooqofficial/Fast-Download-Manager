@@ -20,9 +20,9 @@
 
 <br>
 
-<img src="docs/assets/hero.svg" width="820" alt="The FDM download window: pressing Start Download, a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
+<img src="docs/assets/hero.svg" width="560" alt="The FDM download window: a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
 
-<sub>One file, 32 connections. The ticks in the bar are real segment boundaries.</sub>
+<sub>One file, 32 connections at once.</sub>
 
 </div>
 
