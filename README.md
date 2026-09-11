@@ -205,6 +205,10 @@ fdm hash "D:\Downloads\largefile.iso"
 | `--sha256` | Calculate and print SHA-256 hash upon completion | `false` |
 | `-H, --header <K: V>` | Custom HTTP request header (repeatable) | `None` |
 
+
+Note: This build isn't code-signed yet, so Windows will show "Publisher: Unknown."
+Click More info → Run anyway. Verify the download with the [VirusTotal scan](https://www.virustotal.com/gui/file/c56f2f3bf2cb578db5e0cd9ac1325dde6774852c26b2e302945234381f08e605/details).
+
 ---
 
 ## 📜 License & Attribution
