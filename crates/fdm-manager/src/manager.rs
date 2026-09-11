@@ -1061,6 +1061,22 @@ fn parse_speed_str(s: &str) -> f64 {
     cleaned.parse::<f64>().unwrap_or(0.0) * multiplier
 }
 
+/// Split a `FDM_PROG:` payload into (downloaded, total, speed, eta).
+///
+/// The ETA carries its own colons — "01:30", "1:02:03" — so everything from the
+/// fourth field onwards belongs to it. Taking only the fourth field left the ETA
+/// parser looking at "01" and returning `None`, which is why the dialog never
+/// showed a time remaining.
+fn parse_progress_payload(raw: &str) -> Option<(u64, Option<u64>, &str, String)> {
+    let parts: Vec<&str> = raw.split(':').collect();
+    if parts.len() < 4 {
+        return None;
+    }
+    let downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
+    let total: Option<u64> = parts[1].trim().parse().ok().filter(|&t| t > 0);
+    Some((downloaded, total, parts[2].trim(), parts[3..].join(":")))
+}
+
 fn parse_eta_str(s: &str) -> Option<u64> {
     let s = s.trim();
     if s == "UNKNOWN" || s == "NA" || s.is_empty() {
@@ -1233,6 +1249,16 @@ async fn download_video_platform(
 
         let mut args: Vec<String> = vec![
             "--newline".into(),
+            // `--print` (which is how we learn the output path) implies
+            // `--quiet`, and quiet silences two different things we need:
+            // `--progress` brings back the progress lines — without it the UI
+            // sat on "Connecting to server…" for a whole download and then
+            // jumped to complete — and `--no-quiet` brings back the
+            // "[youtube] Downloading webpage" lines the stage display reads.
+            // Verified against a real download: 0 progress lines and no stages
+            // without these, 17 progress lines and 4 stages with them.
+            "--progress".into(),
+            "--no-quiet".into(),
             "--progress-template".into(),
             "download:FDM_PROG:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress._speed_str)s:%(progress._eta_str)s".into(),
             "--no-playlist".into(),
@@ -1356,12 +1382,10 @@ async fn download_video_platform(
                 printed_path = Some(line[idx + "FDM_PATH:".len()..].trim().to_string());
             } else if let Some(idx) = line.find("FDM_PROG:") {
                 let raw = line[idx + "FDM_PROG:".len()..].trim();
-                let parts: Vec<&str> = raw.split(':').collect();
-                if parts.len() >= 4 {
-                    let curr_downloaded: u64 = parts[0].trim().parse().unwrap_or(0);
-                    let curr_total: Option<u64> = parts[1].trim().parse().ok().filter(|&t| t > 0);
-                    let speed_str = parts[2].trim();
-                    let eta_str = parts[3].trim();
+                if let Some((curr_downloaded, curr_total, speed_str, eta_owned)) =
+                    parse_progress_payload(raw)
+                {
+                    let eta_str = eta_owned.trim();
 
                     let (display_downloaded, display_total) = if is_split_stream {
                         // Track 1 (video) -> 0% to 88%, Track 2 (audio) -> 88% to 100%
@@ -1659,4 +1683,78 @@ fn clean_media_url(raw: &str) -> String {
         }
     }
     raw.to_string()
+}
+
+#[cfg(test)]
+mod ytdlp_progress_tests {
+    use super::*;
+
+    /// Lines captured verbatim from yt-dlp 2026.08.19 running the exact command
+    /// the manager builds. The ETA field is the interesting part: it contains
+    /// the same colon used to separate fields.
+    const REAL_LINES: &[&str] = &[
+        "1024:14972685: 161.06KiB/s:01:30",
+        "3072:14972685: 326.10KiB/s:00:44",
+        "12660122:12660122:   2.44MiB/s:00:00",
+        "12660122:12660122:1.34MiB/s:NA",
+    ];
+
+    #[test]
+    fn parses_real_progress_lines() {
+        let (done, total, speed, eta) = parse_progress_payload(REAL_LINES[0]).unwrap();
+        assert_eq!(done, 1024);
+        assert_eq!(total, Some(14_972_685));
+        assert_eq!(speed, "161.06KiB/s");
+        assert_eq!(eta, "01:30");
+    }
+
+    #[test]
+    fn keeps_the_whole_eta_not_just_its_first_field() {
+        // The regression this guards: splitting on ':' and taking parts[3] left
+        // "01", which parse_eta_str rejects, so no ETA ever reached the UI.
+        for line in REAL_LINES {
+            let (_, _, _, eta) = parse_progress_payload(line).unwrap();
+            assert!(
+                eta.contains(':') || eta == "NA",
+                "{line}: ETA {eta:?} lost its seconds"
+            );
+        }
+        let (_, _, _, eta) = parse_progress_payload(REAL_LINES[0]).unwrap();
+        assert_eq!(parse_eta_str(&eta), Some(90));
+    }
+
+    #[test]
+    fn an_unknown_eta_is_none_rather_than_an_error() {
+        let (_, _, _, eta) = parse_progress_payload(REAL_LINES[3]).unwrap();
+        assert_eq!(parse_eta_str(&eta), None);
+    }
+
+    #[test]
+    fn a_truncated_line_is_rejected_rather_than_panicking() {
+        assert!(parse_progress_payload("1024:14972685").is_none());
+        assert!(parse_progress_payload("").is_none());
+    }
+
+    #[test]
+    fn recognises_the_stages_yt_dlp_actually_prints() {
+        // Also captured from a real run.
+        assert_eq!(
+            stage_from_ytdlp_line("[youtube] Extracting URL: https://youtu.be/x"),
+            Some("resolving")
+        );
+        assert_eq!(
+            stage_from_ytdlp_line("[youtube] abc: Downloading webpage"),
+            Some("resolving")
+        );
+        assert_eq!(
+            stage_from_ytdlp_line("[youtube] abc: Downloading visionos player API JSON"),
+            Some("formats")
+        );
+        assert_eq!(
+            stage_from_ytdlp_line("[info] abc: Downloading 1 format(s): 401+251"),
+            Some("starting")
+        );
+        assert_eq!(stage_from_ytdlp_line("[Merger] Merging formats into \"v.mp4\""), Some("merging"));
+        assert_eq!(stage_from_ytdlp_line("something unremarkable"), None);
+    }
 }

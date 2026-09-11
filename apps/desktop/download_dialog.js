@@ -322,7 +322,12 @@ function render(d) {
     // downloading with actual progress
     el.progressFill.style.background = 'linear-gradient(90deg, #e50914 0%, #ff4b2b 50%, #2ecc71 100%)';
     el.progressFill.classList.remove('shimmer');
-    el.status.textContent = t('dialog_status_downloading', { n: conns });
+    // Every progress tick clears the stage, so one that is still set here means
+    // the bytes are in and ffmpeg is merging — minutes of apparent silence at
+    // 100% on a large video unless we say so.
+    el.status.textContent = d.stage
+      ? t(`stage_${d.stage}`)
+      : t('dialog_status_downloading', { n: conns });
     el.status.style.color = 'var(--fdm-info)';
     el.eta.textContent = formatTime(d.eta_secs || d.etaSecs);
     el.btnPause.textContent = t('dialog_pause');

@@ -1,6 +1,6 @@
 [package]
 name = "fdm-desktop"
-version = "0.1.12"
+version = "0.1.13"
 description = "Fast Download Manager"
 authors = ["Ahmad Farooq"]
 edition = "2021"

@@ -95,7 +95,12 @@ SolidCompression=yes
 LZMAUseSeparateProcess=yes
 DisableProgramGroupPage=yes
 DisableDirPage=no
-ShowLanguageDialog=no
+; Ask which language to install in, and preselect the one matching Windows so
+; most users can just press Enter. Was `no` back when English was the only
+; option — leaving it that way would have compiled fifteen translations in and
+; then never offered any of them.
+ShowLanguageDialog=yes
+LanguageDetectionMethod=uilanguage
 MinVersion=10.0.17763
 
 ; Code signing. Enabled by build-installer.ps1 -SignThumbprint / -SelfSign,

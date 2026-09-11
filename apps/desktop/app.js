@@ -117,11 +117,14 @@ function t(key, vars) {
 }
 
 function statusLabelText(status, d) {
-  // A video extraction reports which step it is on before any byte moves.
-  // Showing it is the difference between a progress bar that looks stuck and
-  // one that is visibly working. Only while it is actually running, though —
-  // a stage left over from a since-paused download would be a lie.
-  if (d.stage && !d.downloaded && ['queued', 'connecting', 'downloading'].includes(status)) {
+  // A video extraction reports which step it is on. The stage is cleared on
+  // every progress tick, so a stage that is still set means nothing is moving —
+  // either yt-dlp is still resolving the video, or it has finished downloading
+  // and is merging, which on a 4K file is a long silent wait at 100%. Either
+  // way it is the difference between a bar that looks stuck and one that is
+  // visibly working. Only while running, though: a stage left over from a
+  // since-paused download would be a lie.
+  if (d.stage && ['queued', 'connecting', 'downloading'].includes(status)) {
     return t(`stage_${d.stage}`);
   }
   if (status === 'downloading') {
