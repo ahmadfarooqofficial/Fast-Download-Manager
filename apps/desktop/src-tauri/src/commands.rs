@@ -132,6 +132,25 @@ pub fn update_config(
     Ok(())
 }
 
+/// The language the user chose in the installer, as an Inno language name
+/// ("russian", "german", …), or `None` when there is nothing to go on.
+///
+/// Setup writes this beside the executable. It exists because the two choices
+/// were previously unrelated: installing in Russian still opened an English
+/// app, since the app only ever guessed from the OS locale. The frontend
+/// consults this once, on a first run with no saved preference — after that the
+/// Settings choice is the only thing that matters.
+#[tauri::command]
+pub fn get_setup_language() -> Option<String> {
+    let path = std::env::current_exe().ok()?.parent()?.join("setup-language.txt");
+    let raw = std::fs::read_to_string(path).ok()?;
+    let name = raw.trim().to_ascii_lowercase();
+    if name.is_empty() {
+        return None;
+    }
+    Some(name)
+}
+
 /// Where a download will be saved if started now — shown in the popup so the
 /// user can see and change it before committing.
 #[tauri::command]

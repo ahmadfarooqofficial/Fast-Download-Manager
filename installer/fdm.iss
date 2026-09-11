@@ -121,21 +121,22 @@ SignedUninstaller=yes
 ; in Settings, because a user who installs in English may still want the app in
 ; their own language (and vice versa).
 [Languages]
+; Only languages FDM's own UI can also speak. Offering a wizard language the app
+; cannot match is how "I installed in Russian and the app opened in English"
+; happens — Setup hands its choice to the app via setup-language.txt, and that
+; is only honest if every entry here has a matching dictionary in
+; apps/desktop/i18n/languages.js.
+;
+; To add one, both halves are required: an .isl that Inno ships (or a supplied
+; one) AND a dictionary for the app.
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
-Name: "czech"; MessagesFile: "compiler:Languages\Czech.isl"
-Name: "dutch"; MessagesFile: "compiler:Languages\Dutch.isl"
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "german"; MessagesFile: "compiler:Languages\German.isl"
-Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
-Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
-Name: "polish"; MessagesFile: "compiler:Languages\Polish.isl"
 Name: "portuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "turkish"; MessagesFile: "compiler:Languages\Turkish.isl"
-Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
 
 ; Our own wizard strings, per language. Anything a translation does not define
 ; falls back to the english entry.
@@ -154,20 +155,6 @@ arabic.GroupShortcuts=الاختصارات:
 arabic.GroupStartup=بدء التشغيل:
 arabic.GroupAdvanced=متقدم:
 
-czech.TaskDesktopIcon=Vytvořit zástupce na &ploše
-czech.TaskStartup=Spouštět FDM při přihlášení do Windows
-czech.TaskAddToPath=Přidat příkaz &fdm do PATH (pro terminál)
-czech.GroupShortcuts=Zástupci:
-czech.GroupStartup=Po spuštění:
-czech.GroupAdvanced=Pokročilé:
-
-dutch.TaskDesktopIcon=Een snelkoppeling op het &bureaublad maken
-dutch.TaskStartup=FDM starten wanneer ik me aanmeld bij Windows
-dutch.TaskAddToPath=De opdracht &fdm aan PATH toevoegen (voor de terminal)
-dutch.GroupShortcuts=Snelkoppelingen:
-dutch.GroupStartup=Opstarten:
-dutch.GroupAdvanced=Geavanceerd:
-
 french.TaskDesktopIcon=Créer un raccourci sur le &Bureau
 french.TaskStartup=Lancer FDM à l'ouverture de session Windows
 french.TaskAddToPath=Ajouter la commande &fdm au PATH (pour le terminal)
@@ -181,34 +168,6 @@ german.TaskAddToPath=Befehl &fdm zum PATH hinzufügen (für das Terminal)
 german.GroupShortcuts=Verknüpfungen:
 german.GroupStartup=Autostart:
 german.GroupAdvanced=Erweitert:
-
-italian.TaskDesktopIcon=Crea un collegamento sul &desktop
-italian.TaskStartup=Avvia FDM all'accesso a Windows
-italian.TaskAddToPath=Aggiungi il comando &fdm al PATH (per il terminale)
-italian.GroupShortcuts=Collegamenti:
-italian.GroupStartup=Avvio:
-italian.GroupAdvanced=Avanzate:
-
-japanese.TaskDesktopIcon=デスクトップにショートカットを作成する(&D)
-japanese.TaskStartup=Windows へのサインイン時に FDM を起動する
-japanese.TaskAddToPath=PATH に &fdm コマンドを追加する (ターミナル用)
-japanese.GroupShortcuts=ショートカット:
-japanese.GroupStartup=スタートアップ:
-japanese.GroupAdvanced=詳細設定:
-
-korean.TaskDesktopIcon=바탕 화면에 바로 가기 만들기(&D)
-korean.TaskStartup=Windows에 로그인할 때 FDM 시작
-korean.TaskAddToPath=PATH에 &fdm 명령 추가 (터미널용)
-korean.GroupShortcuts=바로 가기:
-korean.GroupStartup=시작 프로그램:
-korean.GroupAdvanced=고급:
-
-polish.TaskDesktopIcon=Utwórz skrót na &pulpicie
-polish.TaskStartup=Uruchamiaj FDM po zalogowaniu do Windows
-polish.TaskAddToPath=Dodaj polecenie &fdm do PATH (do użytku w terminalu)
-polish.GroupShortcuts=Skróty:
-polish.GroupStartup=Autostart:
-polish.GroupAdvanced=Zaawansowane:
 
 portuguese.TaskDesktopIcon=Criar um atalho na &área de trabalho
 portuguese.TaskStartup=Iniciar o FDM ao entrar no Windows
@@ -237,13 +196,6 @@ turkish.TaskAddToPath=&fdm komutunu PATH'e ekle (terminal için)
 turkish.GroupShortcuts=Kısayollar:
 turkish.GroupStartup=Başlangıç:
 turkish.GroupAdvanced=Gelişmiş:
-
-ukrainian.TaskDesktopIcon=Створити ярлик на &робочому столі
-ukrainian.TaskStartup=Запускати FDM під час входу у Windows
-ukrainian.TaskAddToPath=Додати команду &fdm до PATH (для термінала)
-ukrainian.GroupShortcuts=Ярлики:
-ukrainian.GroupStartup=Автозапуск:
-ukrainian.GroupAdvanced=Додатково:
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:TaskDesktopIcon}"; GroupDescription: "{cm:GroupShortcuts}"
@@ -338,6 +290,7 @@ Filename: "https://github.com/ahmadfarooq/fdm#enabling-the-browser-extension"; D
 
 [UninstallDelete]
 ; Generated at install time, so not tracked by the file list.
+Type: files; Name: "{app}\setup-language.txt"
 Type: files; Name: "{app}\manifests\{#NativeHostName}.json"
 Type: dirifempty; Name: "{app}\manifests"
 Type: dirifempty; Name: "{app}"
@@ -582,11 +535,25 @@ begin
   SaveStringsToUTF8FileWithoutBOM(Dir + '\update.xml', Lines, False);
 end;
 
+{ Hand the language the user picked in this wizard to the app.
+
+  Without this the two are unrelated: Setup runs in Russian, then FDM opens in
+  English because the app was guessing from the OS locale and had no idea a
+  choice had already been made. The app reads this file once, on a first run
+  with no saved preference, and Settings overrides it from then on. }
+procedure WriteSetupLanguage;
+begin
+  if not SaveStringToFile(ExpandConstant('{app}\setup-language.txt'),
+                          ExpandConstant('{language}'), False) then
+    Log('Could not record the setup language; the app will fall back to the system locale.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
     WriteNativeHostManifest;
     WriteExtensionUpdateXml;
+    WriteSetupLanguage;
   end;
 end;

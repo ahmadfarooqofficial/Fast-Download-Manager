@@ -166,6 +166,7 @@ async fn main() {
             update_config,
             get_target_dir,
             set_target_dir,
+            get_setup_language,
             open_file,
             open_folder,
             minimize_window,

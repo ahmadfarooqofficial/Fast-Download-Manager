@@ -8,11 +8,18 @@
 // is doing when you drag a finished download onto your desktop.
 // ==========================================================================
 (function () {
-  const tauri = window.__TAURI__ || {};
-  const invoke =
-    (tauri.core && tauri.core.invoke) || tauri.invoke ||
-    (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
-  const Channel = tauri.core && tauri.core.Channel;
+  // Resolved on use, not at load: this file runs from <head>, which can be
+  // before Tauri has injected its globals, and capturing `undefined` there
+  // would disable the drag for the life of the window.
+  function bridge() {
+    const tauri = window.__TAURI__ || {};
+    return {
+      invoke:
+        (tauri.core && tauri.core.invoke) || tauri.invoke ||
+        (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke),
+      Channel: tauri.core && tauri.core.Channel,
+    };
+  }
 
   /// The picture that follows the cursor during the drag.
   ///
@@ -62,6 +69,7 @@
   /// Start a native drag of `path`. Call from a `dragstart` handler after
   /// `preventDefault()`.
   async function startFileDrag(path) {
+    const { invoke, Channel } = bridge();
     if (!path || !invoke) return;
     try {
       await invoke('plugin:drag|start_drag', {

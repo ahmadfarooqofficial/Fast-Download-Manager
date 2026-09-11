@@ -15,17 +15,6 @@ const urlParams = new URLSearchParams(window.location.search);
 const downloadId = parseInt(urlParams.get('id'), 10);
 
 // Native window dragging on entire background & header
-document.addEventListener('mousedown', (e) => {
-  if (e.target.closest('button, a, input, select, textarea, .btn')) return;
-  try {
-    if (window.__TAURI_INTERNALS__?.invoke) {
-      window.__TAURI_INTERNALS__.invoke('plugin:window|start_dragging');
-    } else if (tauri.window?.getCurrentWindow) {
-      tauri.window.getCurrentWindow().startDragging();
-    }
-  } catch (err) {}
-});
-
 let currentDownload = null;
 let userStarted = false; // Controls prompt vs active downloading view
 // Where this download will land: what the engine resolved, and what the user
@@ -476,8 +465,13 @@ el.celebrateBtnManager?.addEventListener('click', async () => {
 });
 
 // Smooth Window Dragging
+// Pressing empty chrome moves the window. The exclusion list is load-bearing:
+// `start_dragging` hands the mouse to the OS window-move loop, so anything it
+// does not exclude can never receive a drag, a selection or a click. That is
+// exactly how the finished-file chip lost its drag — a second, less careful
+// copy of this handler was grabbing the mouse first.
 document.addEventListener('mousedown', (e) => {
-  if (e.target.closest('button, input, select, a, .celebrate-drag-chip, .prompt-card, .dialog-grid')) return;
+  if (e.target.closest('button, input, select, textarea, a, .btn, .celebrate-drag-chip, .prompt-card, .dialog-grid')) return;
   window.__TAURI__?.window?.getCurrentWindow()?.startDragging().catch(() => {});
 });
 

@@ -9,13 +9,33 @@
   const LANGUAGES = window.FDM_LANGUAGES || [{ code: 'en', name: 'English' }];
   const SUPPORTED = LANGUAGES.map((l) => l.code);
 
-  function detectLanguage() {
+  // Inno Setup names its languages in English words; ours are ISO codes. Every
+  // language the installer offers has an entry here — see the note in
+  // installer/fdm.iss, which is the other half of this contract.
+  const SETUP_LANGUAGE_CODES = {
+    english: 'en',
+    arabic: 'ar',
+    french: 'fr',
+    german: 'de',
+    portuguese: 'pt',
+    russian: 'ru',
+    spanish: 'es',
+    turkish: 'tr',
+  };
+
+  function savedLanguage() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved && SUPPORTED.includes(saved)) return saved;
     } catch (_err) {
       // localStorage unavailable — fall through to the system locale.
     }
+    return null;
+  }
+
+  function detectLanguage() {
+    const saved = savedLanguage();
+    if (saved) return saved;
     // "pt-BR" should find "pt"; an unknown locale falls back to English.
     const tag = (navigator.language || 'en').toLowerCase();
     const base = tag.split('-')[0];
@@ -23,6 +43,31 @@
   }
 
   let currentLang = detectLanguage();
+
+  /// Adopt the installer's language on a first run.
+  ///
+  /// Only when the user has not already chosen one: someone who picked Russian
+  /// in Settings should not be dragged back to the installer's German on the
+  /// next launch. Async because it has to cross into Rust, so the UI renders in
+  /// the detected language first and switches if this disagrees.
+  async function adoptSetupLanguage() {
+    if (savedLanguage()) return;
+    const tauri = window.__TAURI__ || {};
+    const invoke = (tauri.core && tauri.core.invoke) || tauri.invoke ||
+      (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+    if (!invoke) return;
+    try {
+      const name = await invoke('get_setup_language');
+      const code = name && SETUP_LANGUAGE_CODES[name];
+      if (!code || !SUPPORTED.includes(code) || code === currentLang) return;
+      currentLang = code;
+      applyTranslations();
+      document.dispatchEvent(new CustomEvent('fdm-language-changed', { detail: { lang: code } }));
+    } catch (_err) {
+      // No installer marker (a dev build, or a portable copy) — the detected
+      // language already stands.
+    }
+  }
 
   // {n} style placeholders, e.g. t('dialog_status_downloading', {n: 8}).
   function t(key, vars) {
@@ -87,7 +132,10 @@
     languages: LANGUAGES,
   };
 
-  document.addEventListener('DOMContentLoaded', () => applyTranslations());
+  document.addEventListener('DOMContentLoaded', () => {
+    applyTranslations();
+    adoptSetupLanguage();
+  });
 
   // All windows (main + per-download popups) share an origin and therefore
   // localStorage, so a change in one window's Settings reaches the others
