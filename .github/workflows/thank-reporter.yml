@@ -1,0 +1,141 @@
+# Greets whoever opens an issue, and — where it can tell what they are describing
+# — points them at the version that already fixes it.
+#
+# The point is not politeness. Most reports arrive from people running an older
+# build, so the single most useful thing to say first is "this may already be
+# fixed, here is how to check". Everything else is asking for the details that
+# would otherwise cost a round trip each.
+#
+# To teach it a new problem, add an entry to KNOWN below. Keep `hint` to one or
+# two sentences: a reply nobody reads helps nobody.
+name: Thank New Issue Reporter
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  thank-reporter:
+    runs-on: ubuntu-latest
+    # Don't greet myself for my own issues.
+    if: github.event.issue.user.login != github.repository_owner
+    steps:
+      - name: Post thank-you and triage hints
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const LATEST = 'v0.1.15';
+            const RELEASES = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/latest`;
+
+            // Matched against the lowercased title + body. Keywords include the
+            // Russian and Spanish a reporter is likely to actually type, because
+            // the people hitting these bugs are not all writing in English.
+            const KNOWN = [
+              {
+                name: 'window dragging',
+                keywords: ['drag the window', 'move the window', "can't move", 'cannot move',
+                           'window not moving', 'перетаск', 'переместить окно'],
+                hint: 'Window dragging was broken by a missing permission and is fixed in **v0.1.11**.'
+              },
+              {
+                name: 'missing VCRUNTIME',
+                keywords: ['vcruntime', 'msvcp140', 'code execution cannot proceed',
+                           'dll was not found', 'не удалось запустить'],
+                hint: 'That crash was a missing Visual C++ runtime dependency. **v0.1.12** links it in, so nothing extra needs installing.'
+              },
+              {
+                name: 'no download progress',
+                keywords: ['connecting to server', 'no progress', 'progress bar stuck',
+                           'stuck at 0', 'no speed', 'нет прогресса'],
+                hint: 'A progress bar stuck on "Connecting to server…" for the whole download is fixed in **v0.1.13** — speed, size and time remaining all report live now.'
+              },
+              {
+                name: 'language',
+                keywords: ['language', 'russian', 'русск', 'idioma', 'translate', 'translation',
+                           'english only', 'на русском'],
+                hint: 'FDM ships in 12 languages since **v0.1.12**. It follows your Windows language, and you can change it in **Settings → Language**.'
+              },
+              {
+                name: 'tiny or corrupt file',
+                keywords: ['few kb', 'only kb', 'small file', 'corrupt', 'incomplete file',
+                           'wrong size', 'html instead'],
+                hint: 'Downloads landing as a few KB were caused by hosts rejecting the old user agent. Fixed in **v0.1.12**.'
+              },
+              {
+                name: 'drag out',
+                keywords: ['drag out', 'drag the file', 'drag to desktop', 'drag and drop',
+                           'drop the file'],
+                hint: 'Dragging a finished download out to Explorer or the desktop works from **v0.1.15**, from both the completion popup and the main list.'
+              },
+              {
+                name: 'download location',
+                keywords: ['save location', 'download folder', 'change folder', 'save to',
+                           'wrong folder', 'папк'],
+                hint: 'Per-category folders live in **Settings** since **v0.1.12**, and the download popup lets you redirect a single download with the folder button.'
+              },
+              {
+                name: 'slow youtube',
+                keywords: ['slow', 'takes long', 'youtube slow', 'long time to start', 'медленно'],
+                hint: 'YouTube extraction got roughly 40% faster in **v0.1.15**, and yt-dlp is warmed up at startup so the first video is no longer the slow one.'
+              },
+              {
+                name: 'extension not capturing',
+                keywords: ['extension', 'not capturing', 'chrome', 'browser download',
+                           'not intercept', 'does not catch'],
+                hint: 'Check the toolbar icon: clicking it toggles capture, and it greys out with a slash while capture is off. Chrome also asks you to enable the extension once after installing — it does not allow an installer to do that for you.'
+              },
+              {
+                name: 'yt-dlp missing',
+                keywords: ['yt-dlp', 'ytdlp', 'yt dlp is missing', 'tools folder'],
+                hint: 'That means `yt-dlp.exe` is not in the tools folder. Reinstalling with the latest setup puts it there.'
+              },
+            ];
+
+            const issue = context.payload.issue;
+            const haystack = `${issue.title}\n${issue.body || ''}`.toLowerCase();
+            const matched = KNOWN.filter(k => k.keywords.some(w => haystack.includes(w)));
+
+            const lines = [
+              `Thanks for opening this, @${issue.user.login} — I appreciate you taking the time.`,
+              ``,
+            ];
+
+            if (matched.length) {
+              lines.push(
+                `This looks like it may be something already fixed. **The latest release is ${LATEST}** — if you are on an older build, please update first:`,
+                ``,
+                ...matched.map(m => `- ${m.hint}`),
+                ``,
+                `Download: ${RELEASES}`,
+                ``,
+                `If you are already on ${LATEST} and still hitting it, say so and I will dig in.`,
+                ``
+              );
+            } else {
+              lines.push(
+                `I read every issue and will get back to you. FDM is maintained by one person in his spare time, so it may take a few days.`,
+                ``
+              );
+            }
+
+            lines.push(
+              `<details><summary>What helps me fix it faster</summary>`,
+              ``,
+              `- Your FDM version (**Settings → About**) and Windows version`,
+              `- What you did, what happened, and what you expected instead`,
+              `- The link you were downloading, if it is not private`,
+              `- Whether it happens every time or just once`,
+              ``,
+              `</details>`,
+              ``,
+              `FDM is free and open source — thanks for helping make it better.`
+            );
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: lines.join('\n')
+            });
