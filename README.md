@@ -20,7 +20,7 @@
 
 <img src="docs/assets/hero.svg" width="760" alt="The FDM download window: a 5.7 GB file transferring over 32 parallel connections at around 50 MB/s, then finishing.">
 
-<sub>One file, 32 connections at once.</sub>
+<sub>64 Connection Parallel Download Support.</sub>
 
 </div>
 
