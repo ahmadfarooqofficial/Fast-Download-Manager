@@ -52,6 +52,7 @@ pub mod pipe;
 
 pub use client::{Client, ClientError, Welcome};
 pub use frame::MAX_FRAME;
+pub use session::Hooks;
 pub use wire::{AddRequest, ErrorKind, EventMessage, Reply, Request, PROTOCOL_VERSION};
 
 #[cfg(windows)]

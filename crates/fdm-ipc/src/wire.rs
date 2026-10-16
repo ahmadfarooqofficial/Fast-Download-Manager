@@ -75,6 +75,15 @@ pub enum Request {
     /// means a duplicate at worst, and every event is an idempotent "replace the
     /// row with this id".
     Subscribe,
+
+    /// Bring the running FDM's window to the front.
+    ///
+    /// Sent by a second `fdm-desktop.exe` that found the pipe already taken: the
+    /// shortcut was double-clicked while FDM sat in the tray, and what the user
+    /// wants is the window, not a second copy of the app. The one request that
+    /// does not map onto a `Manager` method, because the window belongs to the
+    /// process serving the pipe — see [`crate::session::Hooks`].
+    Activate,
 }
 
 /// A new download, as a client describes it.
@@ -309,6 +318,15 @@ mod tests {
         let raw = br#"{"seq":3,"request":{"op":"pauseAll"}}"#;
         let call: Call = serde_json::from_slice(raw).unwrap();
         assert!(matches!(call.request, Request::PauseAll));
+    }
+
+    #[test]
+    fn activate_is_a_bare_op() {
+        // What a second `fdm-desktop.exe` sends when it finds the pipe taken.
+        let raw = br#"{"seq":2,"request":{"op":"activate"}}"#;
+        let call: Call = serde_json::from_slice(raw).unwrap();
+        assert!(matches!(call.request, Request::Activate));
+        assert_eq!(serde_json::to_string(&call.request).unwrap(), r#"{"op":"activate"}"#);
     }
 
     #[test]

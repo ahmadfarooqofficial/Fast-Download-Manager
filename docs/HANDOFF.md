@@ -341,6 +341,22 @@ Each of these was reached by hitting the failure it prevents.
     on a different drive from the download root: the rename fails and
     `scratch.rs`'s copy-then-delete fallback has to run.
 
+18. **The tray icon is built in `apps/desktop/src-tauri/src/main.rs` and nowhere
+    else — `app.trayIcon` stays out of `tauri.conf.json`.** Tauri builds an icon
+    from that config inside `Builder::build`, before `setup` runs, with no menu
+    and no click handler; the hand-built one then becomes a *second* icon, and
+    the user sees two FDMs of which one answers to nothing (issue #4).
+
+19. **The pipe is bound before `tauri::Builder` runs, and a second instance
+    returns from `main` instead of calling `process::exit`.** The single-instance
+    check used to live on a background task that raced the window and tray
+    being built; a second launch then exited with a tray icon already
+    registered. `process::exit` skips destructors, a registered icon is never
+    removed, and Windows draws a dead "ghost" icon until the mouse passes over
+    it (issue #4 again). Now nothing visible exists until this process owns the
+    pipe, and the loser asks the winner to raise its window
+    (`fdm_ipc::Request::Activate`, served through `fdm_ipc::Hooks`) and leaves.
+
 ---
 
 ## 5. How to build and test

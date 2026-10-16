@@ -41,12 +41,41 @@ use crate::wire::{
 /// ask for a fresh snapshot.
 const OUTBOX_DEPTH: usize = 256;
 
+/// What the process serving the pipe can do that the [`Manager`] cannot.
+///
+/// The dispatch table maps requests onto `Manager` methods, and that is where the
+/// vocabulary should stay. The one exception is [`Request::Activate`]: the window
+/// belongs to the process, not to the download list, so the process supplies the
+/// way to raise it here. A server that supplies nothing refuses the request
+/// rather than pretending it worked.
+#[derive(Clone, Default)]
+pub struct Hooks {
+    /// Show and focus the app's window. Called from a Tokio worker thread.
+    pub activate: Option<Arc<dyn Fn() + Send + Sync>>,
+}
+
+impl std::fmt::Debug for Hooks {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Hooks")
+            .field("activate", &self.activate.is_some())
+            .finish()
+    }
+}
+
 /// Serve one connection until the client disconnects.
 ///
 /// Returns `Ok(())` for every ordinary ending, including a client that hangs up
 /// mid-request. An `Err` means the stream itself misbehaved — a frame that could
 /// not be parsed as a length prefix — which is worth a log line and nothing more.
 pub async fn serve<S>(stream: S, manager: Arc<Manager>) -> std::io::Result<()>
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    serve_with(stream, manager, Hooks::default()).await
+}
+
+/// [`serve`], for a process that can also do what [`Hooks`] describes.
+pub async fn serve_with<S>(stream: S, manager: Arc<Manager>, hooks: Hooks) -> std::io::Result<()>
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
@@ -70,7 +99,7 @@ where
         while inbox.recv().await.is_some() {}
     });
 
-    let result = converse(&mut reader, &outbox, &manager).await;
+    let result = converse(&mut reader, &outbox, &manager, &hooks).await;
 
     // Dropping the last sender is what tells the writer to finish.
     drop(outbox);
@@ -83,6 +112,7 @@ async fn converse<R>(
     reader: &mut R,
     outbox: &mpsc::Sender<ServerMessage>,
     manager: &Arc<Manager>,
+    hooks: &Hooks,
 ) -> std::io::Result<()>
 where
     R: AsyncRead + Unpin,
@@ -154,7 +184,7 @@ where
             }
         }
 
-        let reply = dispatch(call.request, manager, outbox, &mut forwarder).await;
+        let reply = dispatch(call.request, manager, hooks, outbox, &mut forwarder).await;
         if !send(outbox, seq, reply).await {
             break Ok(());
         }
@@ -199,6 +229,7 @@ fn welcome(manager: &Manager) -> Reply {
 async fn dispatch(
     request: Request,
     manager: &Arc<Manager>,
+    hooks: &Hooks,
     outbox: &mpsc::Sender<ServerMessage>,
     forwarder: &mut Option<tokio::task::JoinHandle<()>>,
 ) -> Reply {
@@ -261,6 +292,17 @@ async fn dispatch(
 
             Reply::List { downloads }
         }
+
+        Request::Activate => match &hooks.activate {
+            Some(activate) => {
+                activate();
+                Reply::Done
+            }
+            None => Reply::error(
+                ErrorKind::WrongState,
+                "the running FDM has no window to bring to the front",
+            ),
+        },
     }
 }
 
