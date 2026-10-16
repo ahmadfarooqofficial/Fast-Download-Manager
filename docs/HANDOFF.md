@@ -357,6 +357,13 @@ Each of these was reached by hitting the failure it prevents.
     pipe, and the loser asks the winner to raise its window
     (`fdm_ipc::Request::Activate`, served through `fdm_ipc::Hooks`) and leaves.
 
+20. **A file path never goes into an inline `onclick` as a string literal.**
+    Inside `onclick="f('${path}')"` the path is JavaScript source, and every
+    backslash is an escape: `C:\Users\x` becomes `C:Usersx`, and `\x`, `\u`,
+    `\n` and friends either corrupt it further or make the handler a syntax
+    error. "Open Folder" opened the wrong folder for exactly this reason (#8).
+    Row handlers take the row's id and look the path up in `downloads`.
+
 ---
 
 ## 5. How to build and test

@@ -236,7 +236,11 @@ function render(d) {
   // Populate prompt fields
   if (el.promptUrl) el.promptUrl.value = d.url || '';
   if (el.promptFilename) el.promptFilename.value = d.filename || '';
-  if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Video').toUpperCase();
+  // The engine supplies a category from the moment the row exists, chosen by
+  // the same rule as the folder below, so the two always agree. The fallback is
+  // only for a row from an older build that saved none — and it must not be
+  // "Video", which is how an installer ended up labelled as a film.
+  if (el.promptCategory) el.promptCategory.textContent = (d.category || 'Other').toUpperCase();
   // The real resolved folder, not a placeholder — the user is about to decide
   // whether to accept it, so it has to be the truth.
   if (el.promptPath && !chosenDir) {
@@ -497,13 +501,21 @@ async function init() {
       try {
         const d = await invoke('get_download', { id: downloadId });
         if (d) render(d);
+        return !!d;
       } catch (err) {
         console.debug('Failed to get download:', err);
       }
     }
+    return false;
   }
 
-  await refresh();
+  // A popup for a download that no longer exists — removed from the list
+  // before this window finished opening — has nothing to show. Rather than sit
+  // there as an empty window, go away.
+  if (!(await refresh())) {
+    invoke('close_window').catch(console.error);
+    return;
+  }
   const pollInterval = setInterval(refresh, 200);
 
   // Real-time events

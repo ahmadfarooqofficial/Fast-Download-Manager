@@ -190,10 +190,15 @@ pub fn open_file(path: String) -> Result<(), String> {
 pub fn open_folder(path: String) -> Result<(), String> {
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt as _;
+
         let p = std::path::Path::new(&path);
         if p.exists() {
+            // Explorer parses its own command line and wants the switch and
+            // the path as one token, `/select,"C:\dir\file"`. Handed as two
+            // arguments it ignores the selection and opens a default folder.
             std::process::Command::new("explorer")
-                .args(["/select,", &path])
+                .raw_arg(format!("/select,\"{path}\""))
                 .spawn()
                 .map_err(|e| e.to_string())?;
         } else if let Some(parent) = p.parent() {
