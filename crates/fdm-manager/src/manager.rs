@@ -279,7 +279,8 @@ impl Manager {
             let id = reg.next_id;
             reg.next_id += 1;
 
-            let entry = DownloadEntry::new(id, new.url.as_str(), filename);
+            let mut entry = DownloadEntry::new(id, new.url.as_str(), filename);
+            entry.category = Some(initial_category(new.url.as_str(), &entry.filename));
             let snapshot = entry.clone();
             reg.entries.insert(id, entry);
             let mut rt = Runtime::new(new.headers.clone(), new.target_dir.clone());
@@ -310,6 +311,7 @@ impl Manager {
 
             let mut entry = DownloadEntry::new(id, new.url.as_str(), filename);
             entry.status = Status::Paused;
+            entry.category = Some(initial_category(new.url.as_str(), &entry.filename));
             let snapshot = entry.clone();
             reg.entries.insert(id, entry);
             let mut rt = Runtime::new(new.headers.clone(), new.target_dir.clone());
@@ -987,6 +989,23 @@ fn persist_now(reg: &Arc<Mutex<Registry>>, store: &Store) {
         (guard.next_id, guard.ordered())
     };
     store.save(next_id, &entries);
+}
+
+/// The category a download is shown under before anything has been fetched.
+///
+/// The popup shows a category badge next to the "Save to" path from the moment
+/// it opens, and the two have to agree. The path already came from this exact
+/// guess — see [`Manager::resolve_target_dir`] — so a row that carried no
+/// category at all let the popup fall back to a hardcoded "Video" and label an
+/// installer as a film. The engine overwrites this with what the server and the
+/// first bytes say as soon as the download starts, so it is only ever a guess,
+/// but it is the same guess the folder was chosen by.
+fn initial_category(url: &str, filename: &str) -> fdm_core::categorize::Category {
+    if is_video_platform(url) {
+        fdm_core::categorize::Category::Video
+    } else {
+        fdm_core::categorize::classify(filename, None, &[])
+    }
 }
 
 /// Delete the scratch pair. Silent on failure by design: a `.part` that will not
@@ -1683,6 +1702,43 @@ fn clean_media_url(raw: &str) -> String {
         }
     }
     raw.to_string()
+}
+
+#[cfg(test)]
+mod initial_category_tests {
+    use super::*;
+    use fdm_core::categorize::Category;
+
+    /// The popup's badge and its "Save to" path come from the same guess, so an
+    /// installer must read as Programs from the moment the row exists (#7).
+    #[test]
+    fn an_installer_is_programs_before_anything_is_fetched() {
+        assert_eq!(
+            initial_category("https://example.com/dl/setup.exe", "setup.exe"),
+            Category::Programs
+        );
+        assert_eq!(
+            initial_category("https://example.com/a.zip?token=1", "a.zip"),
+            Category::Compressed
+        );
+    }
+
+    /// A video-site link has no useful extension, and must not fall to Other.
+    #[test]
+    fn a_video_site_link_is_video_before_anything_is_fetched() {
+        assert_eq!(
+            initial_category("https://www.youtube.com/watch?v=abc", "watch"),
+            Category::Video
+        );
+    }
+
+    #[test]
+    fn an_unknown_name_is_other_not_video() {
+        assert_eq!(
+            initial_category("https://example.com/download", "download"),
+            Category::Other
+        );
+    }
 }
 
 #[cfg(test)]

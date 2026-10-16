@@ -193,6 +193,23 @@
     </form>
   </dialog>
 
+  <!-- Remove Download Dialog: the row is going; the file is the user's call. -->
+  <dialog class="modal-dialog" id="remove-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" data-i18n="remove_dialog_title">Remove download</h3>
+        <button type="button" class="btn-icon" id="btn-remove-cancel">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="remove-dialog-text" id="remove-dialog-text"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-remove-keep" data-i18n="remove_dialog_keep_file">Keep the file</button>
+        <button type="button" class="btn-primary" id="btn-remove-delete" data-i18n="remove_dialog_delete_file">Delete file too</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Settings Dialog -->
   <dialog class="modal-dialog" id="settings-dialog">
     <div class="modal-content">

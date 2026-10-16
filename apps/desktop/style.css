@@ -707,6 +707,13 @@ button {
   border-bottom-right-radius: inherit;
 }
 
+.remove-dialog-text {
+  margin: 0;
+  font-size: var(--fdm-text-body);
+  color: var(--fdm-fg);
+  overflow-wrap: anywhere;
+}
+
 /* Settings Modal Specifics */
 .settings-body {
   max-height: 400px;

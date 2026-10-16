@@ -156,11 +156,16 @@ function getRowHtml(d) {
     actions.push(`<button onclick="window.fdm.resume(${d.id})">${t('action_resume')}</button>`);
     actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, true)">${t('action_delete')}</button>`);
   } else if (status === 'completed') {
+    // The handlers take the row's id and look the path up, never the path
+    // itself: inside an inline handler the path is a JavaScript string
+    // literal, where every backslash is an escape. `C:\Users\...` arrived in
+    // Rust as `C:Users...`, and Explorer, asked to open that, opened whatever
+    // folder it felt like.
     if (d.path) {
-      actions.push(`<button onclick="window.fdm.openFile('${escapeHtml(d.path)}')">${t('action_open_file')}</button>`);
-      actions.push(`<button onclick="window.fdm.openFolder('${escapeHtml(d.path)}')">${t('action_open_folder')}</button>`);
+      actions.push(`<button onclick="window.fdm.openFile(${d.id})">${t('action_open_file')}</button>`);
+      actions.push(`<button onclick="window.fdm.openFolder(${d.id})">${t('action_open_folder')}</button>`);
     }
-    actions.push(`<button class="btn-danger" onclick="window.fdm.remove(${d.id}, false)">${t('action_remove')}</button>`);
+    actions.push(`<button class="btn-danger" onclick="window.fdm.askRemove(${d.id})">${t('action_remove')}</button>`);
   }
 
   return `
@@ -288,14 +293,64 @@ function render() {
 }
 
 // ------------------------------------------------------------- Global Handlers
+function pathOf(id) {
+  const d = downloads.find((x) => x.id === id);
+  return d && d.path ? d.path : null;
+}
+
+// Removing a finished download asks what to do with the file, the way other
+// download managers do: the row and the bytes are two different things, and
+// "Remove" alone used to leave people hunting for a file they thought was gone.
+const removeDialog = document.getElementById('remove-dialog');
+let pendingRemoveId = null;
+
+function askRemove(id) {
+  const d = downloads.find((x) => x.id === id);
+  if (!d) return;
+  if (!removeDialog || typeof removeDialog.showModal !== 'function') {
+    invoke('remove_download', { id, deleteFile: false }).catch(console.error);
+    return;
+  }
+  pendingRemoveId = id;
+  const text = document.getElementById('remove-dialog-text');
+  if (text) text.textContent = t('remove_dialog_text', { name: d.filename || d.url });
+  removeDialog.showModal();
+}
+
+function finishRemove(deleteFile) {
+  const id = pendingRemoveId;
+  pendingRemoveId = null;
+  removeDialog?.close();
+  if (id == null) return;
+  invoke('remove_download', { id, deleteFile }).catch(console.error);
+}
+
+document.getElementById('btn-remove-delete')?.addEventListener('click', () => finishRemove(true));
+document.getElementById('btn-remove-keep')?.addEventListener('click', () => finishRemove(false));
+document.getElementById('btn-remove-cancel')?.addEventListener('click', () => {
+  pendingRemoveId = null;
+  removeDialog?.close();
+});
+// Escape closes the dialog without going through a button.
+removeDialog?.addEventListener('close', () => {
+  pendingRemoveId = null;
+});
+
 window.fdm = {
   openDialog: (id) => invoke('open_download_dialog_cmd', { id }).catch(console.error),
   pause: (id) => invoke('pause_download', { id }).catch(console.error),
   resume: (id) => invoke('resume_download', { id }).catch(console.error),
   cancel: (id) => invoke('cancel_download', { id }).catch(console.error),
   remove: (id, deleteFile) => invoke('remove_download', { id, deleteFile }).catch(console.error),
-  openFile: (path) => invoke('open_file', { path }).catch(console.error),
-  openFolder: (path) => invoke('open_folder', { path }).catch(console.error),
+  askRemove,
+  openFile: (id) => {
+    const path = pathOf(id);
+    if (path) invoke('open_file', { path }).catch(console.error);
+  },
+  openFolder: (id) => {
+    const path = pathOf(id);
+    if (path) invoke('open_folder', { path }).catch(console.error);
+  },
 };
 
 // ------------------------------------------------------------- Toolbar Actions
