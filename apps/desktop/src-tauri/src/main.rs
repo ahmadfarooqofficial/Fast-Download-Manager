@@ -127,9 +127,30 @@ async fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_drag::init())
         .manage(Arc::clone(&manager))
+        // Popups wait for this: once the main page has loaded, WebView2 is
+        // demonstrably up in this process and a second webview can be trusted
+        // to come up too. See `open_download_dialog`.
+        .on_page_load(|webview, payload| {
+            if webview.label() == "main"
+                && matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+            {
+                main_webview_ready(webview.app_handle());
+            }
+        })
         .setup(move |app| {
             let app_handle = app.handle().clone();
             let _ = app_slot.set(app_handle.clone());
+
+            // If the main page never reports loaded, popups must not wait for
+            // ever — a hidden main window on a slow machine is not a reason to
+            // swallow the browser's downloads.
+            {
+                let app_handle = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(8)).await;
+                    main_webview_ready(&app_handle);
+                });
+            }
 
             // Pay yt-dlp's first-run unpack cost now, while the user is still
             // looking at the window opening, rather than on their first video.
@@ -191,8 +212,18 @@ async fn main() {
 
             tauri::async_runtime::spawn(async move {
                 while let Ok(event) = events.recv().await {
-                    if let fdm_manager::Event::Added(ref entry) = event {
-                        open_download_dialog(&app_handle, entry.id);
+                    match event {
+                        fdm_manager::Event::Added(ref entry) => {
+                            open_download_dialog(&app_handle, entry.id);
+                        }
+                        // The popup closes itself when its page is running. When
+                        // it is not — it never loaded — this is the only thing
+                        // that will, and a removed download must not leave a
+                        // window behind.
+                        fdm_manager::Event::Removed(id) => {
+                            close_download_dialog(&app_handle, id);
+                        }
+                        fdm_manager::Event::Changed(_) => {}
                     }
                     if let Err(e) = app_handle.emit("download-event", event) {
                         tracing::warn!("Failed to emit event: {}", e);
