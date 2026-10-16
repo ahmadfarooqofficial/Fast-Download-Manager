@@ -24,7 +24,7 @@ use tokio::net::windows::named_pipe::{ClientOptions, NamedPipeClient, PipeMode, 
 
 use crate::client::{Client, ClientError};
 use crate::security::{current_user_sid, SecurityDescriptor};
-use crate::session;
+use crate::session::{self, Hooks};
 
 /// `ERROR_ACCESS_DENIED` — what `FILE_FLAG_FIRST_PIPE_INSTANCE` returns when an
 /// instance of the name already exists.
@@ -85,6 +85,7 @@ pub struct Server {
     name: String,
     security: SecurityDescriptor,
     manager: Arc<Manager>,
+    hooks: Hooks,
     /// The instance waiting for the next client. Always present: an accept
     /// replaces it before the accepted connection is handed to a task.
     next: tokio::net::windows::named_pipe::NamedPipeServer,
@@ -121,8 +122,16 @@ impl Server {
             name: name.to_string(),
             security,
             manager,
+            hooks: Hooks::default(),
             next,
         })
+    }
+
+    /// What this process can do for a client beyond the download list — raising
+    /// its window, for a second copy of FDM that found the pipe taken.
+    pub fn with_hooks(mut self, hooks: Hooks) -> Self {
+        self.hooks = hooks;
+        self
     }
 
     /// The pipe's full name, for logs and for a bug report.
@@ -151,8 +160,9 @@ impl Server {
             );
 
             let manager = Arc::clone(&self.manager);
+            let hooks = self.hooks.clone();
             tokio::spawn(async move {
-                if let Err(e) = session::serve(connected, manager).await {
+                if let Err(e) = session::serve_with(connected, manager, hooks).await {
                     tracing::debug!(error = %e, "ipc session ended badly");
                 }
             });

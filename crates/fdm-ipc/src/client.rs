@@ -224,6 +224,16 @@ where
         }
     }
 
+    /// Ask the running FDM to show and focus its window.
+    ///
+    /// Refused with [`ErrorKind::WrongState`] by a server that has no window to
+    /// show. An older server that predates the request answers with a parse
+    /// error instead, which surfaces here as [`ClientError::OutOfTurn`]; either
+    /// way the caller has nothing to do but log it and exit.
+    pub async fn activate(&mut self) -> Result<()> {
+        self.done(Request::Activate).await
+    }
+
     /// Ask for the event stream. Returns the snapshot it starts from — see
     /// [`Request::Subscribe`] for why those are one request.
     pub async fn subscribe(&mut self) -> Result<Vec<DownloadEntry>> {

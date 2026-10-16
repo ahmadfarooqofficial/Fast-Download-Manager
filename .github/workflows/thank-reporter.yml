@@ -46,7 +46,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const LATEST = 'v0.1.15';
+            const LATEST = 'v0.1.16';
             const RELEASES = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/latest`;
 
             // Matched against the lowercased title + body. Keywords include the
@@ -99,6 +99,13 @@ jobs:
                 name: 'slow youtube',
                 keywords: ['slow', 'takes long', 'youtube slow', 'long time to start', 'медленно'],
                 hint: 'YouTube extraction got roughly 40% faster in **v0.1.15**, and yt-dlp is warmed up at startup so the first video is no longer the slow one.'
+              },
+              {
+                name: 'duplicate or ghost tray icon',
+                keywords: ['two icons', 'two tray', 'two app icons', 'duplicate icon', 'second icon',
+                           'ghost icon', 'tray icon', 'system tray', 'notification area',
+                           'две иконки', 'иконк', 'bandeja'],
+                hint: 'Two FDM icons in the tray — one of them a dead "ghost" that answers to nothing — is fixed in **v0.1.16**. The icon was being created twice, and launching FDM a second time left one behind.'
               },
               {
                 name: 'extension not capturing',

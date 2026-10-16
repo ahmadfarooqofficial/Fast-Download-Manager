@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager as _};
@@ -34,6 +34,27 @@ fn size_to_screen(win: &tauri::WebviewWindow) {
 use fdm_desktop::commands::*;
 use fdm_manager::Manager;
 
+/// Launched to sit in the tray rather than to be looked at: the startup entry,
+/// or `fdm-host` bringing the app up to hand it a download.
+fn launched_in_background() -> bool {
+    std::env::args().any(|arg| arg == "--background" || arg == "--silent" || arg == "-b")
+}
+
+/// Ask the copy of FDM that owns the pipe to bring its window to the front.
+///
+/// Best effort. Whatever goes wrong here, the right thing for this process to do
+/// next is the same: leave quietly.
+async fn raise_running_instance() {
+    match fdm_ipc::connect().await {
+        Ok(mut client) => {
+            if let Err(e) = client.activate().await {
+                tracing::warn!("the running FDM did not show its window: {}", e);
+            }
+        }
+        Err(e) => tracing::warn!("could not reach the running FDM: {}", e),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -48,19 +69,59 @@ async fn main() {
         }
     };
 
-    let ipc_manager = Arc::clone(&manager);
-    tokio::spawn(async move {
-        match fdm_ipc::pipe::serve_forever(ipc_manager).await {
-            Ok(_) => unreachable!(),
-            Err(fdm_ipc::pipe::BindError::AlreadyRunning) => {
-                tracing::info!("FDM is already running. Exiting.");
-                std::process::exit(0);
-            }
-            Err(e) => {
-                tracing::warn!("Failed to start IPC server: {}", e);
+    // The single-instance check, before anything visible exists.
+    //
+    // Owning the pipe is what makes this process *the* FDM. It used to be
+    // claimed on a background task while the window and tray icon were already
+    // being built, and a second launch — the shortcut double-clicked while FDM
+    // sat in the tray, the startup entry racing the browser bridge — then called
+    // `process::exit` with a tray icon already registered. Exit skips
+    // destructors, so the icon was never removed, and Windows kept drawing a
+    // dead "ghost" icon that answered to nothing until the mouse passed over it
+    // (issue #4). Now the pipe is claimed first, and a second copy hands the
+    // user over to the running one and leaves before it has drawn anything.
+    //
+    // The hook needs the app handle, which does not exist yet; it is filled in
+    // from `setup` below. A request that arrives before then finds the slot
+    // empty and is a harmless no-op.
+    let app_slot: Arc<OnceLock<tauri::AppHandle>> = Arc::new(OnceLock::new());
+    let activate: Arc<dyn Fn() + Send + Sync> = Arc::new({
+        let slot = Arc::clone(&app_slot);
+        move || {
+            if let Some(app) = slot.get() {
+                let _ = show_main_window(app.clone());
             }
         }
     });
+    let hooks = fdm_ipc::Hooks {
+        activate: Some(activate),
+    };
+
+    let server = match fdm_ipc::Server::bind(Arc::clone(&manager)) {
+        Ok(server) => Some(server.with_hooks(hooks)),
+        Err(fdm_ipc::BindError::AlreadyRunning) => {
+            if launched_in_background() {
+                tracing::info!("FDM is already running. Exiting.");
+            } else {
+                tracing::info!("FDM is already running; asking it to show its window.");
+                raise_running_instance().await;
+            }
+            return;
+        }
+        Err(e) => {
+            // Not fatal: the app keeps its list and its window, it merely cannot
+            // hear from the browser extension. Say so and carry on.
+            tracing::warn!("Failed to start IPC server: {}", e);
+            None
+        }
+    };
+    if let Some(server) = server {
+        tokio::spawn(async move {
+            if let Err(e) = server.run().await {
+                tracing::warn!("IPC server stopped: {}", e);
+            }
+        });
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -68,18 +129,26 @@ async fn main() {
         .manage(Arc::clone(&manager))
         .setup(move |app| {
             let app_handle = app.handle().clone();
+            let _ = app_slot.set(app_handle.clone());
 
             // Pay yt-dlp's first-run unpack cost now, while the user is still
             // looking at the window opening, rather than on their first video.
             fdm_manager::prewarm_video_tools();
 
-            // Set up system tray
+            // The one and only tray icon.
+            //
+            // Do not add `app.trayIcon` back to tauri.conf.json: Tauri builds an
+            // icon from that config before `setup` runs, with no menu and no
+            // click handler, and this one then becomes the second icon in the
+            // tray — the user sees two FDMs, one of which answers to nothing
+            // (issue #4). Everything the tray needs is right here.
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let hide_i = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &hide_i, &quit_i])?;
 
             let mut tray_builder = TrayIconBuilder::new()
+                .tooltip("Fast Download Manager")
                 .menu(&menu)
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
@@ -132,8 +201,7 @@ async fn main() {
             });
 
             // Show main window if launched directly by user (not --background / --silent)
-            let is_background = std::env::args().any(|arg| arg == "--background" || arg == "--silent" || arg == "-b");
-            if !is_background {
+            if !launched_in_background() {
                 if let Some(win) = app.get_webview_window("main") {
                     size_to_screen(&win);
                     let _ = win.show();

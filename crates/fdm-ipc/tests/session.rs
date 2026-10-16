@@ -394,6 +394,46 @@ async fn subscribing_twice_does_not_double_every_event() {
     );
 }
 
+// ------------------------------------------------------------------ activation
+
+#[tokio::test]
+async fn activate_reaches_the_process_that_owns_the_window() {
+    // The second-launch case: the shortcut double-clicked while FDM sits in the
+    // tray. The new copy finds the pipe taken and asks its owner for the window
+    // instead of drawing a second tray icon of its own.
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let h = harness();
+    let shown = Arc::new(AtomicUsize::new(0));
+    let hooks = session::Hooks {
+        activate: Some(Arc::new({
+            let shown = Arc::clone(&shown);
+            move || {
+                shown.fetch_add(1, Ordering::SeqCst);
+            }
+        })),
+    };
+    let (theirs, ours) = tokio::io::duplex(PIPE_BUFFER);
+    tokio::spawn(session::serve_with(ours, Arc::clone(&h.manager), hooks));
+    let mut client = Client::handshake(theirs).await.expect("handshake");
+
+    client.activate().await.unwrap();
+    assert_eq!(shown.load(Ordering::SeqCst), 1);
+
+    // An ordinary request, not a session-ending one.
+    assert!(client.list().await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn a_server_with_no_window_refuses_to_pretend_it_showed_one() {
+    let h = harness();
+    let mut client = connect(&h.manager).await;
+    match client.activate().await.unwrap_err() {
+        ClientError::Refused { kind, .. } => assert_eq!(kind, ErrorKind::WrongState),
+        other => panic!("expected a refusal, got {other:?}"),
+    }
+}
+
 // ----------------------------------------------------------------- misbehaviour
 
 #[tokio::test]

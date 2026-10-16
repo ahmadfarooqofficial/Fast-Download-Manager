@@ -184,8 +184,17 @@ $Cargo = Find-Cargo
 
 # rustc cannot link on Windows without MSVC's link.exe. Cargo cannot even
 # `check` without it, because dependency build scripts are native executables.
-$msvc = Get-ChildItem "${env:ProgramFiles(x86)}\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\link.exe" -ErrorAction SilentlyContinue
+# Visual Studio 2022 installs under the 64-bit Program Files; Build Tools and
+# older editions under the 32-bit one. GitHub's Windows runners are the former.
+$msvcGlobs = @("${env:ProgramFiles(x86)}", "$env:ProgramFiles") |
+    ForEach-Object { "$_\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\link.exe" }
+$msvc = Get-ChildItem -Path $msvcGlobs -ErrorAction SilentlyContinue
 if (-not $msvc) {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Fail 'The MSVC linker (link.exe) is missing and winget is not available to install it.' @(
+            'Install Visual Studio Build Tools with the "Desktop development with C++" workload, then re-run this script.'
+        )
+    }
     Write-Info 'MSVC linker missing -- installing Visual Studio Build Tools (this is a large download)...'
     winget install --id Microsoft.VisualStudio.2022.BuildTools --accept-source-agreements `
         --accept-package-agreements --disable-interactivity `

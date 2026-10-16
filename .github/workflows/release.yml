@@ -1,0 +1,113 @@
+# Builds FDM-Setup-<version>.exe on a Windows runner and publishes it as a GitHub
+# Release, with a fresh Extension.zip beside it.
+#
+# Two ways to start it:
+#   - Actions -> Release -> "Run workflow". Reads the version from Cargo.toml and
+#     creates the tag v<version> itself. This is the normal way.
+#   - Push a tag:  git tag v0.1.16 && git push origin v0.1.16
+#
+# The version is whatever [workspace.package] in Cargo.toml says. A pushed tag
+# that disagrees with it fails the run rather than shipping an installer that
+# reports one version and is named after another. Release notes come from
+# docs/releases/v<version>.md, so write those before running this.
+#
+# What it reuses: scripts/build-installer.ps1 does the actual work, exactly as it
+# does on a developer machine, so a release built here is the same installer a
+# maintainer would build by hand -- minus code signing, which needs a certificate
+# nobody should put in CI.
+#
+# Optional secret: EXTENSION_PEM, the private key Chrome used to pack the
+# extension. With it, the bundled fdm.crx keeps the extension ID the installer
+# registers; without it, Chrome generates a new key and the ID changes, which is
+# what a hand-built installer does too when the .pem is missing.
+
+name: Release
+
+on:
+  push:
+    tags: ['v[0-9]*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build installer and publish
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      EXTENSION_PEM: ${{ secrets.EXTENSION_PEM }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version from Cargo.toml
+        id: version
+        run: |
+          $toml = Get-Content Cargo.toml -Raw
+          $m = [regex]::Match($toml, '(?ms)\[workspace\.package\].*?^\s*version\s*=\s*"([^"]+)"')
+          if (-not $m.Success) { throw 'Could not read the version from Cargo.toml' }
+          $version = $m.Groups[1].Value
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$version") {
+            throw "Tag ${{ github.ref_name }} does not match the Cargo.toml version $version"
+          }
+          if (-not (Test-Path "docs/releases/v$version.md")) {
+            throw "No release notes at docs/releases/v$version.md"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Building FDM v$version"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Ensure Inno Setup is installed
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Restore the extension signing key
+        if: env.EXTENSION_PEM != ''
+        run: Set-Content -Path extension.pem -Value $env:EXTENSION_PEM -NoNewline
+
+      - name: Fetch yt-dlp, Deno and FFmpeg
+        run: pwsh -ExecutionPolicy Bypass -File scripts/get-tools.ps1
+
+      - name: Build the installer
+        run: pwsh -ExecutionPolicy Bypass -File scripts/build-installer.ps1 -Version ${{ steps.version.outputs.version }}
+
+      - name: Check the payload is complete
+        run: |
+          $staging = 'target\installer-staging'
+          $required = @(
+            'fdm.exe', 'fdm-desktop.exe', 'fdm-host.exe', 'extension\manifest.json',
+            'tools\yt-dlp.exe', 'tools\deno.exe', 'tools\ffmpeg.exe'
+          )
+          $missing = $required | Where-Object { -not (Test-Path (Join-Path $staging $_)) }
+          if ($missing) { throw "The installer payload is missing: $($missing -join ', ')" }
+          $setup = "installer\output\FDM-Setup-${{ steps.version.outputs.version }}.exe"
+          if (-not (Test-Path $setup)) { throw "No installer was produced at $setup" }
+          $mb = [math]::Round((Get-Item $setup).Length / 1MB, 1)
+          Write-Host "Installer: $setup ($mb MB)"
+
+      - name: Zip the extension
+        run: Compress-Archive -Path extension\* -DestinationPath Extension.zip -Force
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: FDM v${{ steps.version.outputs.version }}
+          body_path: docs/releases/v${{ steps.version.outputs.version }}.md
+          files: |
+            installer/output/FDM-Setup-${{ steps.version.outputs.version }}.exe
+            Extension.zip
+          fail_on_unmatched_files: true
+          make_latest: true
