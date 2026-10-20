@@ -133,6 +133,13 @@ jobs:
                 hint: 'Deleted downloads coming back after a restart, and a blank white popup window, are both fixed in **v0.1.18**. A save of the list could be lost to a file lock right before shutdown, and a popup opened during startup could come up empty.'
               },
               {
+                name: 'main window shows 0 B/s or too many connections',
+                keywords: ['0 b/s', '0 conns', 'not synchronized', 'not in sync', 'out of sync',
+                           'conns', 'connections', 'speed jumps', 'speed changes rapidly', 'flicker',
+                           '连接', '不同步', 'скорость 0', 'соединени'],
+                hint: 'The main window showing "0 B/s · ETA --:--:-- · 0/N conns" while the popup shows the real speed, a connection count in the hundreds, and a speed reading that jumps too fast to follow are all fixed in **v0.1.18**.'
+              },
+              {
                 name: 'extension not capturing',
                 keywords: ['extension', 'not capturing', 'chrome', 'browser download',
                            'not intercept', 'does not catch'],

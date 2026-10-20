@@ -343,7 +343,9 @@ impl Engine {
         });
 
         // ---- run the segment pool ---------------------------------------------------
-        let mut meter = SpeedMeter::new();
+        // Measure from what is already on disk, so a resume does not open with
+        // the bytes it found counted as the bytes it moved.
+        let mut meter = SpeedMeter::starting_at(plan.total_done());
         let started = Instant::now();
 
         on_progress(ProgressSnapshot {

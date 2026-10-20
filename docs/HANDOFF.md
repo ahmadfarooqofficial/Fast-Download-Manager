@@ -383,6 +383,22 @@ Each of these was reached by hitting the failure it prevents.
     5 s, closes one that still shows nothing, and `Event::Removed` closes the
     popup from Rust. Keep all three; each covers a case the others do not.
 
+23. **`DownloadEntry` reaches the UI as camelCase JSON** (`speedBps`, `etaSecs`,
+    `activeConnections`, `addedAt`, …): the struct carries
+    `#[serde(rename_all = "camelCase")]`. The main window read the snake_case
+    names for months and so showed "0 B/s · ETA --:--:-- · 0/N conns" on every
+    running download while the popup, which read the right names, showed the
+    truth (#12). When adding a field to the row, read the camelCase name.
+    `segments` is the number of pieces the file has been cut into, which only
+    grows under dynamic splitting; it is never a connection count. Show
+    `activeConnections` for that.
+
+24. **`SpeedMeter` measures over windows of at least 250 ms and forgets with a
+    2 s time constant, weighted by elapsed time.** The coordinator ticks every
+    16 ms and sixty workers land bytes at their own moments, so a per-tick rate
+    is worker timing, not throughput (#12). Shortening the window or going back
+    to a fixed per-sample weight brings the jitter back.
+
 ---
 
 ## 5. How to build and test
