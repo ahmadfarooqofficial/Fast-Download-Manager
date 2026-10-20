@@ -276,7 +276,11 @@ function render(d) {
   el.url.textContent = d.url || '—';
   el.url.title = d.url || '';
 
-  const conns = d.active_connections || d.activeConnections || d.segments || 32;
+  // Streams open right now. Never fall back to `segments`: that is the number
+  // of pieces the file has been cut into, which only grows, and showing it as
+  // a connection count is how "139 connections" appeared on a 64-connection
+  // download (#12).
+  const conns = d.activeConnections ?? d.active_connections ?? 0;
   el.progressSegs.textContent = `${conns} ${t('dialog_connections_suffix')}`;
 
   if (d.status === 'paused') {

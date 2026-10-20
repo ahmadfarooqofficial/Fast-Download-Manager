@@ -128,9 +128,17 @@ function statusLabelText(status, d) {
     return t(`stage_${d.stage}`);
   }
   if (status === 'downloading') {
-    const segments = d.segments || 1;
-    const activeConns = d.active_connections || 0;
-    return `${formatSpeed(d.speed_bps)} · ETA ${formatTime(d.eta_secs)} · ${activeConns}/${segments} conns`;
+    // The entry arrives as camelCase JSON (speedBps, etaSecs,
+    // activeConnections). Reading the snake_case names here is what left this
+    // line stuck on "0 B/s · ETA --:--:-- · 0/N conns" while the popup, which
+    // read the right names, showed 8 MB/s and 64 connections (#12). Connections
+    // means streams open right now; `segments` is how many pieces the file has
+    // been cut into, which keeps growing as pieces finish and is not what
+    // anyone means by "conns".
+    const activeConns = d.activeConnections ?? d.active_connections ?? 0;
+    const speed = d.speedBps ?? d.speed_bps;
+    const eta = d.etaSecs ?? d.eta_secs;
+    return `${formatSpeed(speed)} · ETA ${formatTime(eta)} · ${activeConns} conns`;
   }
   if (status === 'failed') {
     return d.error ? `${t('row_failed_prefix')}${escapeHtml(d.error)}` : t('status_failed');

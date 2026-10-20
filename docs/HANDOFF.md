@@ -364,6 +364,41 @@ Each of these was reached by hitting the failure it prevents.
     error. "Open Folder" opened the wrong folder for exactly this reason (#8).
     Row handlers take the row's id and look the path up in `downloads`.
 
+21. **`Store::try_save` retries, and falls back to writing in place.** The
+    write-temp-then-rename save is atomic, but on Windows the rename fails with
+    a sharing violation while an antivirus scanner or the indexer holds the file
+    it just saw written. A failed save was only a warning, and when the failed
+    save was a deletion made right before shutdown, nothing came after it to
+    repair the file — so deleted downloads came back at the next start (#10).
+    Do not turn the retry off to make saves "faster": it only costs time when
+    the first attempt has already failed.
+
+22. **Download popups wait for the main page to load, heal themselves, and are
+    closed by the app when their download is removed.** The pipe is bound
+    before Tauri runs, so the browser can hand over a download before the main
+    webview exists; a popup created then could come up as a white window that
+    never ran its script, and nothing closed it because the closing was done by
+    that script (#10). `open_download_dialog` queues until `on_page_load` fires
+    for `main` (bounded by an 8 s timer), reloads a popup that has not loaded in
+    5 s, closes one that still shows nothing, and `Event::Removed` closes the
+    popup from Rust. Keep all three; each covers a case the others do not.
+
+23. **`DownloadEntry` reaches the UI as camelCase JSON** (`speedBps`, `etaSecs`,
+    `activeConnections`, `addedAt`, …): the struct carries
+    `#[serde(rename_all = "camelCase")]`. The main window read the snake_case
+    names for months and so showed "0 B/s · ETA --:--:-- · 0/N conns" on every
+    running download while the popup, which read the right names, showed the
+    truth (#12). When adding a field to the row, read the camelCase name.
+    `segments` is the number of pieces the file has been cut into, which only
+    grows under dynamic splitting; it is never a connection count. Show
+    `activeConnections` for that.
+
+24. **`SpeedMeter` measures over windows of at least 250 ms and forgets with a
+    2 s time constant, weighted by elapsed time.** The coordinator ticks every
+    16 ms and sixty workers land bytes at their own moments, so a per-tick rate
+    is worker timing, not throughput (#12). Shortening the window or going back
+    to a fixed per-sample weight brings the jitter back.
+
 ---
 
 ## 5. How to build and test

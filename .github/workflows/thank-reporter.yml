@@ -46,7 +46,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const LATEST = 'v0.1.17';
+            const LATEST = 'v0.1.18';
             const RELEASES = `https://github.com/${context.repo.owner}/${context.repo.repo}/releases/latest`;
 
             // Matched against the lowercased title + body. Keywords include the
@@ -124,6 +124,20 @@ jobs:
                 keywords: ['not deleted', 'was not deleted', 'delete the file', 'local file', 'delete task',
                            'deleting the task', 'remove the file', 'файл не удал', '删除文件', '没有删除'],
                 hint: 'Removing a finished download now asks whether to delete the file from disk as well, from **v0.1.17**. Before that, "Remove" only ever took the row out of the list.'
+              },
+              {
+                name: 'deleted downloads come back / blank popup',
+                keywords: ['reappear', 'come back', 'came back', 'zombie', 'after restart', 'after reboot',
+                           'white window', 'blank window', 'empty window', 'white popup', '白', '空白窗口',
+                           'снова появ', 'белое окно'],
+                hint: 'Deleted downloads coming back after a restart, and a blank white popup window, are both fixed in **v0.1.18**. A save of the list could be lost to a file lock right before shutdown, and a popup opened during startup could come up empty.'
+              },
+              {
+                name: 'main window shows 0 B/s or too many connections',
+                keywords: ['0 b/s', '0 conns', 'not synchronized', 'not in sync', 'out of sync',
+                           'conns', 'connections', 'speed jumps', 'speed changes rapidly', 'flicker',
+                           '连接', '不同步', 'скорость 0', 'соединени'],
+                hint: 'The main window showing "0 B/s · ETA --:--:-- · 0/N conns" while the popup shows the real speed, a connection count in the hundreds, and a speed reading that jumps too fast to follow are all fixed in **v0.1.18**.'
               },
               {
                 name: 'extension not capturing',

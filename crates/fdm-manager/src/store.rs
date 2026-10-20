@@ -105,8 +105,9 @@ impl Store {
     pub fn save(&self, next_id: DownloadId, entries: &[DownloadEntry]) {
         if let Err(e) = self.try_save(next_id, entries) {
             // A failed save must not take a download with it. The user cares
-            // about the file, not the bookkeeping.
-            tracing::warn!(path = %self.path.display(), error = %e, "could not save the download list");
+            // about the file, not the bookkeeping. But it is an error, not a
+            // shrug: the next restart will show whatever this failed to replace.
+            tracing::error!(path = %self.path.display(), error = %e, "could not save the download list");
         }
     }
 
@@ -125,12 +126,57 @@ impl Store {
 
         // Same directory, so the rename is on one volume and therefore atomic.
         let tmp = self.path.with_extension("json.tmp");
-        std::fs::write(&tmp, &json)?;
+        retrying(|| std::fs::write(&tmp, &json))?;
         // Windows `rename` refuses to clobber, unlike POSIX. `std::fs::rename`
         // uses MoveFileEx with MOVEFILE_REPLACE_EXISTING and does replace, but a
         // stale temp file from a previous crash would still be in the way of the
         // *write* above if it were read-only, so this stays explicit and simple.
-        std::fs::rename(&tmp, &self.path)
+        match retrying(|| std::fs::rename(&tmp, &self.path)) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                // The rename would not go through even after waiting. Write the
+                // list in place instead: not atomic, but a file that is right
+                // beats one that is atomically stale. This is how a deleted
+                // download used to come back after a restart (#10) — the
+                // deletion was the last thing to happen before shutdown, its
+                // save was lost to a sharing violation, and nothing came after
+                // it to repair the file.
+                tracing::warn!(
+                    path = %self.path.display(),
+                    error = %e,
+                    "could not replace the download list atomically; writing it in place"
+                );
+                std::fs::write(&self.path, &json)?;
+                let _ = std::fs::remove_file(&tmp);
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Run a file operation again when it fails, for a short while.
+///
+/// Windows lets an antivirus scanner or the search indexer hold a file that was
+/// just written for a few milliseconds, and a rename over or from it fails with
+/// a sharing violation in that window. The operation is sound; it only has to be
+/// repeated once the other party lets go. Eight attempts with doubling waits is
+/// about three quarters of a second in the worst case, and the first retry
+/// usually succeeds.
+fn retrying<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
+    const ATTEMPTS: u32 = 8;
+    let mut wait = std::time::Duration::from_millis(10);
+    let mut attempt = 1;
+    loop {
+        match op() {
+            Ok(v) => return Ok(v),
+            Err(e) if attempt < ATTEMPTS => {
+                tracing::debug!(attempt, error = %e, "file operation failed; retrying");
+                std::thread::sleep(wait);
+                wait = (wait * 2).min(std::time::Duration::from_millis(200));
+                attempt += 1;
+            }
+            Err(e) => return Err(e),
+        }
     }
 }
 
@@ -193,6 +239,36 @@ mod tests {
         assert_eq!(back[1].status, Status::Paused);
         // A finished download is untouched.
         assert_eq!(back[2].status, Status::Completed);
+    }
+
+    /// A save that hits a transient error must come through, not be dropped.
+    #[test]
+    fn a_transient_failure_is_retried_until_it_passes() {
+        let mut calls = 0;
+        let result = retrying(|| {
+            calls += 1;
+            if calls < 3 {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "held by a scanner",
+                ))
+            } else {
+                Ok(calls)
+            }
+        });
+        assert_eq!(result.unwrap(), 3);
+    }
+
+    #[test]
+    fn a_persistent_failure_is_still_reported() {
+        let mut calls = 0;
+        let err = retrying(|| -> std::io::Result<()> {
+            calls += 1;
+            Err(std::io::Error::other("never"))
+        })
+        .unwrap_err();
+        assert_eq!(err.to_string(), "never");
+        assert_eq!(calls, 8, "every attempt must be spent before giving up");
     }
 
     #[test]
