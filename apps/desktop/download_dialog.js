@@ -489,6 +489,10 @@ document.addEventListener('fdm-language-changed', () => {
 
 // Initialization & Live Sync
 async function init() {
+  // First thing: tell the app this page is really running. A popup that never
+  // says so is reloaded, then closed, rather than left blank on screen.
+  invoke('dialog_ready').catch(() => {});
+
   // Ask the engine where this would land before showing the prompt, so the
   // "Save to" field is populated the moment the popup appears.
   if (!isNaN(downloadId)) {
@@ -500,23 +504,25 @@ async function init() {
     }
   }
 
+  // `false` means the app answered and the download is gone; `null` means the
+  // question could not be asked, which is not the same thing.
   async function refresh() {
-    if (!isNaN(downloadId)) {
-      try {
-        const d = await invoke('get_download', { id: downloadId });
-        if (d) render(d);
-        return !!d;
-      } catch (err) {
-        console.debug('Failed to get download:', err);
-      }
+    if (isNaN(downloadId)) return false;
+    try {
+      const d = await invoke('get_download', { id: downloadId });
+      if (d) render(d);
+      return !!d;
+    } catch (err) {
+      console.debug('Failed to get download:', err);
+      return null;
     }
-    return false;
   }
 
   // A popup for a download that no longer exists — removed from the list
   // before this window finished opening — has nothing to show. Rather than sit
-  // there as an empty window, go away.
-  if (!(await refresh())) {
+  // there as an empty window, go away. Only on a definite answer: a one-off
+  // error asking is left to the next poll.
+  if ((await refresh()) === false) {
     invoke('close_window').catch(console.error);
     return;
   }
