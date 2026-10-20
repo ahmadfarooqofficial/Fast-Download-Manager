@@ -272,7 +272,8 @@ async fn main() {
             toggle_maximize_window,
             close_window,
             show_main_window,
-            open_download_dialog_cmd
+            open_download_dialog_cmd,
+            dialog_ready
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

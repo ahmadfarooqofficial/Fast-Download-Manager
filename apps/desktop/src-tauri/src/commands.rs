@@ -270,7 +270,9 @@ struct Popups {
     main_ready: bool,
     /// Downloads whose popup is owed as soon as `main_ready` flips.
     pending: Vec<u64>,
-    /// Popup labels whose page has finished loading at least once.
+    /// Popup labels whose script has reported in via `dialog_ready`. That is
+    /// the only proof a popup is really showing something: WebView2 reports a
+    /// navigation as finished whether or not it succeeded.
     loaded: std::collections::HashSet<String>,
 }
 
@@ -304,9 +306,30 @@ pub fn main_webview_ready(app: &tauri::AppHandle) {
         p.main_ready = true;
         std::mem::take(&mut p.pending)
     };
-    for id in waiting {
-        open_download_dialog(app, id);
+    if waiting.is_empty() {
+        return;
     }
+    // Off this thread, not in it: this is reached from inside the main
+    // webview's own page-load callback, and creating another webview from
+    // within a WebView2 event handler is exactly the kind of re-entrancy that
+    // leaves a window blank. Let the callback return first.
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for id in waiting {
+            open_download_dialog(&app, id);
+        }
+    });
+}
+
+/// The popup's script is running. Its first act is to call this, which is what
+/// the watchdog in [`open_download_dialog`] waits for.
+#[tauri::command]
+pub fn dialog_ready(window: tauri::WebviewWindow) {
+    popups()
+        .lock()
+        .unwrap()
+        .loaded
+        .insert(window.label().to_string());
 }
 
 /// The download is gone, so its popup goes too — from here, not from the page's
@@ -345,6 +368,10 @@ pub fn open_download_dialog(app: &tauri::AppHandle, id: u64) {
         return;
     }
 
+    // A previous popup for this download may have reported in and then been
+    // closed by the user; its label must not vouch for the new one.
+    popups().lock().unwrap().loaded.remove(&label);
+
     let url = tauri::WebviewUrl::App(format!("download_dialog.html?id={}", id).into());
     let built = tauri::WebviewWindowBuilder::new(app, &label, url)
         .title("FDM — Download Progress")
@@ -357,14 +384,6 @@ pub fn open_download_dialog(app: &tauri::AppHandle, id: u64) {
         // The app's own background, so a popup that is still loading is a dark
         // card rather than a white rectangle.
         .background_color(tauri::webview::Color(2, 6, 23, 255))
-        .on_page_load({
-            let label = label.clone();
-            move |_win, payload| {
-                if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
-                    popups().lock().unwrap().loaded.insert(label.clone());
-                }
-            }
-        })
         .build();
 
     let Ok(win) = built else {
@@ -373,9 +392,9 @@ pub fn open_download_dialog(app: &tauri::AppHandle, id: u64) {
     let _ = win.show();
     let _ = win.set_focus();
 
-    // Watch it come up. A popup that has not loaded after the grace period is
-    // reloaded once; one that still has not is closed. Either beats a blank
-    // window sitting on top of everything.
+    // Watch it come up. A popup whose script has not reported in after the
+    // grace period is reloaded once; one that still has not is closed. Either
+    // beats a blank window sitting on top of everything.
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
         let loaded = || popups().lock().unwrap().loaded.contains(&label);

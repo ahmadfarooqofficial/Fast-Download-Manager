@@ -379,9 +379,12 @@ Each of these was reached by hitting the failure it prevents.
     webview exists; a popup created then could come up as a white window that
     never ran its script, and nothing closed it because the closing was done by
     that script (#10). `open_download_dialog` queues until `on_page_load` fires
-    for `main` (bounded by an 8 s timer), reloads a popup that has not loaded in
-    5 s, closes one that still shows nothing, and `Event::Removed` closes the
-    popup from Rust. Keep all three; each covers a case the others do not.
+    for `main` (bounded by an 8 s timer, and drained off the callback's thread),
+    reloads a popup whose script has not called `dialog_ready` within 5 s,
+    closes one that still has not, and `Event::Removed` closes the popup from
+    Rust. Readiness comes from the popup's own script on purpose: WebView2
+    reports a navigation as finished whether or not it succeeded. Keep all
+    three; each covers a case the others do not.
 
 23. **`DownloadEntry` reaches the UI as camelCase JSON** (`speedBps`, `etaSecs`,
     `activeConnections`, `addedAt`, …): the struct carries

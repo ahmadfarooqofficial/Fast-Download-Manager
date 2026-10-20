@@ -59,21 +59,21 @@ impl Store {
     /// frozen speed and a stop button that stops nothing. Paused is both true and
     /// actionable — the `.fdm` control file is still there to resume from.
     pub fn load(&self) -> (DownloadId, Vec<DownloadEntry>) {
-        let bytes = match std::fs::read(&self.path) {
-            Ok(b) => b,
-            Err(e) => {
-                if e.kind() != std::io::ErrorKind::NotFound {
-                    tracing::warn!(path = %self.path.display(), error = %e, "could not read the download list");
+        let snap = match read_snapshot(&self.path) {
+            Some(s) => s,
+            None => {
+                // The main file is missing or unreadable. A `.json.tmp` that
+                // `try_save` could not rename into place holds the newest list,
+                // and a half-written main file from its in-place fallback is
+                // the one case where that copy is the better of the two.
+                let tmp = self.path.with_extension("json.tmp");
+                match read_snapshot(&tmp) {
+                    Some(s) => {
+                        tracing::warn!(path = %tmp.display(), "recovered the download list from the temp file");
+                        s
+                    }
+                    None => return (1, Vec::new()),
                 }
-                return (1, Vec::new());
-            }
-        };
-
-        let snap: Snapshot = match serde_json::from_slice(&bytes) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::warn!(error = %e, "download list is unreadable; starting empty");
-                return (1, Vec::new());
             }
         };
 
@@ -154,16 +154,38 @@ impl Store {
     }
 }
 
+/// Read and parse one copy of the list. `None` for a missing, unreadable or
+/// unparseable file, with a log line for anything but "missing".
+fn read_snapshot(path: &Path) -> Option<Snapshot> {
+    let bytes = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) => {
+            if e.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(path = %path.display(), error = %e, "could not read the download list");
+            }
+            return None;
+        }
+    };
+    match serde_json::from_slice(&bytes) {
+        Ok(s) => Some(s),
+        Err(e) => {
+            tracing::warn!(path = %path.display(), error = %e, "download list is unreadable");
+            None
+        }
+    }
+}
+
 /// Run a file operation again when it fails, for a short while.
 ///
 /// Windows lets an antivirus scanner or the search indexer hold a file that was
 /// just written for a few milliseconds, and a rename over or from it fails with
 /// a sharing violation in that window. The operation is sound; it only has to be
-/// repeated once the other party lets go. Eight attempts with doubling waits is
-/// about three quarters of a second in the worst case, and the first retry
-/// usually succeeds.
+/// repeated once the other party lets go. Five attempts with doubling waits is
+/// about a third of a second in the worst case — this runs on the thread that
+/// asked for the save, so it must stay short — and the first retry usually
+/// succeeds.
 fn retrying<T>(mut op: impl FnMut() -> std::io::Result<T>) -> std::io::Result<T> {
-    const ATTEMPTS: u32 = 8;
+    const ATTEMPTS: u32 = 5;
     let mut wait = std::time::Duration::from_millis(10);
     let mut attempt = 1;
     loop {
@@ -268,7 +290,34 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(err.to_string(), "never");
-        assert_eq!(calls, 8, "every attempt must be spent before giving up");
+        assert_eq!(calls, 5, "every attempt must be spent before giving up");
+    }
+
+    /// The in-place fallback in `try_save` can leave a half-written main file
+    /// if the process dies mid-write. The temp file it was trying to rename is
+    /// still the newest complete list, and must not be thrown away.
+    #[test]
+    fn a_half_written_list_is_recovered_from_the_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::new(dir.path().join("downloads.json"));
+        store.save(3, &[entry(1, Status::Completed), entry(2, Status::Paused)]);
+
+        // What a crash between truncate and write looks like: the temp copy is
+        // whole, the main file is not.
+        std::fs::copy(
+            dir.path().join("downloads.json"),
+            dir.path().join("downloads.json.tmp"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("downloads.json"),
+            b"{\"version\":1,\"next_id\":3,\"ent",
+        )
+        .unwrap();
+
+        let (next, back) = store.load();
+        assert_eq!(next, 3);
+        assert_eq!(back.len(), 2, "both rows must come back from the temp copy");
     }
 
     #[test]

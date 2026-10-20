@@ -195,11 +195,11 @@ mod tests {
         m.started = start;
 
         // Ticks inside the window change nothing, however lumpy the bytes.
-        for (bytes, ms) in [(1_000_000, 16), (1_000_000, 100), (9_000_000, 240)] {
+        for (bytes, ms) in [(1_000_000, 16), (2_000_000, 100), (4_000_000, 240)] {
             assert_eq!(m.sample_at(bytes, start + Duration::from_millis(ms)), 0.0);
         }
 
-        // The first full window is the first estimate: 10 MB over 0.5 s.
+        // The first full window is the first estimate: 5 MB over 0.5 s.
         let first = m.sample_at(5_000_000, start + Duration::from_millis(500));
         assert!((first - 10_000_000.0).abs() < 1.0, "{first}");
 
